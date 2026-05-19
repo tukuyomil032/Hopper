@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { PluginDetail, PluginSummary, ResolvedPlugin } from "../registries/types.js";
+import type { ListEntry } from "../services/list.js";
 
 const SOURCE_BADGES = {
   modrinth: chalk.bgHex("#1bd96a").black(" modrinth "),
@@ -77,6 +78,42 @@ export function printResolvedPlugins(plugins: ResolvedPlugin[]): void {
       `  ${chalk.green("↓")} ${chalk.bold(p.name)}${chalk.dim("@")}${chalk.green(p.version)} ${sourceBadge(p.source)}`,
     );
   });
+}
+
+export function printInstalledList(entries: ListEntry[]): void {
+  const nameW = Math.max(4, ...entries.map((e) => e.name.length));
+  const verW = Math.max(7, ...entries.map((e) => e.version.length));
+  const srcW = Math.max(6, ...entries.map((e) => (e.source ?? "-").length));
+
+  const header = [
+    chalk.bold("NAME".padEnd(nameW)),
+    chalk.bold("VERSION".padEnd(verW)),
+    chalk.bold("SOURCE".padEnd(srcW)),
+    chalk.bold("STATUS"),
+  ].join("  ");
+  console.log(header);
+  console.log(chalk.dim("-".repeat(nameW + verW + srcW + 20)));
+
+  for (const e of entries) {
+    let status: string;
+    if (e.upToDate === undefined) {
+      status = chalk.dim("-");
+    } else if (e.upToDate) {
+      status = chalk.green("✓ up-to-date");
+    } else {
+      status = chalk.yellow(`↑ ${e.latestVersion ?? "?"} available`);
+    }
+
+    console.log(
+      [
+        e.name.padEnd(nameW),
+        chalk.cyan(e.version.padEnd(verW)),
+        chalk.dim((e.source ?? "-").padEnd(srcW)),
+        status,
+      ].join("  "),
+    );
+  }
+  console.log();
 }
 
 export function success(msg: string): void {
