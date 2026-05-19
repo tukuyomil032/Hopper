@@ -98,7 +98,3 @@ export function info(msg: string): void {
 export function dim(msg: string): void {
   console.log(chalk.dim(msg));
 }
-
-function isSemver(v: string): boolean {
-  return /^\d+\.\d+/.test(v);
-}
