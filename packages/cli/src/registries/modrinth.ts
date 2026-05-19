@@ -30,6 +30,7 @@ interface ModrinthSearchHit {
   author: string;
   latest_version: string;
   versions: string[];
+  game_versions: string[];
   categories: string[];
   display_categories: string[];
 }
@@ -111,7 +112,8 @@ export async function search(query: string, options: SearchOptions = {}): Promis
     displayName: h.title,
     description: h.description,
     author: h.author,
-    latestVersion: h.latest_version ?? "unknown",
+    latestVersion: h.latest_version ?? "",
+    gameVersions: h.game_versions ?? [],
     source: "modrinth" as const,
     slug: h.slug,
   }));
@@ -135,6 +137,7 @@ export async function getProject(slug: string): Promise<PluginDetail | null> {
     description: project.description,
     author: project.team,
     latestVersion,
+    gameVersions: versions[0]?.minecraft ?? [],
     source: "modrinth" as const,
     slug: project.slug,
     versions,

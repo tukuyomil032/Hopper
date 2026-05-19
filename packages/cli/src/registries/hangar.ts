@@ -127,7 +127,8 @@ export async function search(query: string, options: SearchOptions = {}): Promis
     displayName: p.name,
     description: p.description,
     author: p.namespace.owner,
-    latestVersion: "unknown",
+    latestVersion: "",
+    gameVersions: [],
     source: "hangar" as const,
     slug: p.namespace.slug,
   }));
@@ -154,6 +155,7 @@ export async function getProject(slug: string): Promise<PluginDetail | null> {
     description: project.description,
     author: project.namespace?.owner ?? "",
     latestVersion,
+    gameVersions: versions[0]?.minecraft ?? [],
     source: "hangar" as const,
     slug: project.namespace?.slug ?? slug,
     versions,

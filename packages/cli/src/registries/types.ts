@@ -6,6 +6,7 @@ export interface PluginSummary {
   description: string;
   author: string;
   latestVersion: string;
+  gameVersions: string[];
   source: RegistrySource;
   slug: string;
 }

@@ -23,8 +23,11 @@ export function printSearchResults(results: PluginSummary[]): void {
       `${chalk.dim(`${i + 1}.`)} ${chalk.bold.white(p.displayName)} ${sourceBadge(p.source)}`,
     );
     console.log(`   ${chalk.dim("name:")} ${chalk.cyan(p.name)}`);
-    console.log(`   ${chalk.dim("latest:")} ${chalk.green(p.latestVersion)}`);
     console.log(`   ${chalk.dim("author:")} ${p.author}`);
+    if (p.gameVersions.length > 0) {
+      const mcVersions = p.gameVersions.slice(-3).join(", ");
+      console.log(`   ${chalk.dim("mc:")} ${chalk.dim(mcVersions)}`);
+    }
     if (p.description) {
       const desc = p.description.length > 80 ? `${p.description.slice(0, 77)}...` : p.description;
       console.log(`   ${chalk.dim(desc)}`);
@@ -94,4 +97,8 @@ export function info(msg: string): void {
 
 export function dim(msg: string): void {
   console.log(chalk.dim(msg));
+}
+
+function isSemver(v: string): boolean {
+  return /^\d+\.\d+/.test(v);
 }
