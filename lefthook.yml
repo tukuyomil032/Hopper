@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: true
+  commands:
+    oxlint:
+      glob: "packages/cli/src/**/*.ts"
+      run: npx oxlint packages/cli/src --fix
+    oxfmt:
+      glob: "packages/cli/src/**/*.ts"
+      run: npx oxfmt packages/cli/src --check

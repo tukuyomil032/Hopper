@@ -1,0 +1,24 @@
+{
+  "name": "hopper-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "oxlint packages/cli/src",
+    "fmt": "oxfmt packages/cli/src"
+  },
+  "devDependencies": {
+    "lefthook": "^1.11.13",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^0.16.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lefthook"
+    ]
+  }
+}
