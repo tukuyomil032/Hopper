@@ -2,6 +2,7 @@ import { unlink } from "node:fs/promises";
 import * as path from "node:path";
 import * as installedFs from "../fs/installed.js";
 import * as lockFs from "../fs/lock.js";
+import * as manifestFs from "../fs/manifest.js";
 import { UserError } from "./errors.js";
 
 export interface RemoveOptions {
@@ -57,7 +58,9 @@ export async function removePlugin(
     try {
       await unlink(jarPath);
     } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw e;
+      }
     }
 
     if (lock) {
@@ -66,6 +69,7 @@ export async function removePlugin(
     }
 
     await installedFs.removeInstalled(opts.cwd, entry.name);
+    await manifestFs.removePlugin(opts.cwd, entry.name);
   }
 
   return {
