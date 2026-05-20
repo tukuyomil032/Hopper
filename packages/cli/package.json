@@ -1,6 +1,6 @@
 {
   "name": "@tukuyomil032/hopper",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Minecraft plugin manager — the npm for your server",
   "license": "MIT",
   "bin": {
@@ -11,7 +11,8 @@
     "hr": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -23,6 +24,30 @@
     "test:watch": "vitest",
     "prepublishOnly": "pnpm build && pnpm test"
   },
+  "keywords": [
+    "cli",
+    "minecraft",
+    "java",
+    "plugin",
+    "spigot",
+    "papermc",
+    "fabric",
+    "forge",
+    "purpur",
+    "package",
+    "package-manager",
+    "typescript"
+  ],
+  "author": "tukuyomil032",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tukuyomil032/hopper.git"
+  },
+  "bugs": {
+    "type": "git",
+    "url": "git+https://github.com/tukuyomil032/hopper.git/issues"
+  },
+  "homepage": "https://github.com/tukuyomil032/hopper#readme",
   "dependencies": {
     "@clack/prompts": "^1.4.0",
     "chalk": "^5.3.0",
