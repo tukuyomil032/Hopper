@@ -118,7 +118,9 @@ async function installResolved(
           { ...opts, version: dep.range, save: false },
           onProgress,
         ).catch(() => {
-          // best-effort: skip optional-like missing deps
+          console.error(
+            `Failed to install dependency ${dep.name}@${dep.range} for ${resolved.name}`,
+          );
         });
       }
     }

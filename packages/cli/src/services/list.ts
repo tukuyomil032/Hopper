@@ -19,8 +19,12 @@ export interface ListEntry {
 }
 
 function detectSource(downloadUrl: string): string {
-  if (downloadUrl.includes("modrinth.com")) return "modrinth";
-  if (downloadUrl.includes("hangar.papermc.io")) return "hangar";
+  if (downloadUrl.includes("modrinth.com")) {
+    return "modrinth";
+  }
+  if (downloadUrl.includes("hangar.papermc.io")) {
+    return "hangar";
+  }
   return "unknown";
 }
 
@@ -29,8 +33,9 @@ export async function listPlugins(
   onProgress?: (msg: string) => void,
 ): Promise<ListEntry[]> {
   const installed = await installedFs.readInstalled(opts.cwd);
-  if (installed.length === 0) return [];
-
+  if (installed.length === 0) {
+    return [];
+  }
   const lock = await lockFs.readLock(opts.cwd);
 
   const entries: ListEntry[] = installed.map((e) => {
@@ -57,7 +62,8 @@ export async function listPlugins(
         entry.upToDate = !gt.gt(detail.latestVersion, entry.version);
       }
     } catch {
-      // best-effort: leave latestVersion undefined
+      console.error(`Failed to check latest version for ${entry.name}`);
+      return entries;
     }
   }
 

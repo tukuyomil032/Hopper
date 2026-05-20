@@ -192,7 +192,9 @@ export async function resolve(
   options: ResolveOptions = {},
 ): Promise<ResolvedPlugin | null> {
   const versions = await getVersions(slug, options);
-  if (versions.length === 0) return null;
+  if (versions.length === 0) {
+    return null;
+  }
 
   const target = options.version
     ? (versions.find((v) => v.version === options.version) ?? versions[0])

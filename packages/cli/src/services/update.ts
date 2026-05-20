@@ -60,7 +60,9 @@ export async function updatePlugin(
     try {
       await unlink(oldJar);
     } catch (e: unknown) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw e;
+      }
     }
 
     await installPlugin(
@@ -92,7 +94,9 @@ export async function updateAll(
   onProgress?: (msg: string) => void,
 ): Promise<UpdateResult[]> {
   const installed = await installedFs.readInstalled(opts.cwd);
-  if (installed.length === 0) return [];
+  if (installed.length === 0) {
+    return [];
+  }
 
   const results: UpdateResult[] = [];
   for (const entry of installed) {

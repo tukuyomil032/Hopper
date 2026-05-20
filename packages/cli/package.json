@@ -3,21 +3,18 @@
   "version": "0.1.0",
   "description": "Minecraft plugin manager — the npm for your server",
   "license": "MIT",
-  "type": "module",
-  "main": "./dist/index.js",
   "bin": {
-    "hopper": "./dist/index.js",
     "h": "./dist/index.js",
     "ho": "./dist/index.js",
     "hop": "./dist/index.js",
+    "hopper": "./dist/index.js",
     "hr": "./dist/index.js"
   },
   "files": [
     "dist"
   ],
-  "engines": {
-    "node": ">=18"
-  },
+  "type": "module",
+  "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -45,5 +42,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

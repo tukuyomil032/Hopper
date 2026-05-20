@@ -62,7 +62,9 @@ export async function resolve(
   options: ResolveOptions = {},
 ): Promise<ResolvedPlugin | null> {
   const modrinthResult = await modrinth.resolve(name, options);
-  if (modrinthResult !== null) return modrinthResult;
+  if (modrinthResult !== null) {
+    return modrinthResult;
+  }
 
   const hangarResult = await hangar.resolve(name, options);
   return hangarResult;
