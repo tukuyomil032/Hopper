@@ -1,0 +1,55 @@
+lockfileVersion: 1
+generatedAt: 2026-05-20T04:24:30.006Z
+server:
+  platform: paper
+  minecraftVersion: 26.1.2
+plugins:
+  luckperms:
+    version: v5.5.42-fabric
+    fileName: LuckPerms-Fabric-5.5.42.jar
+    downloadUrl: https://cdn.modrinth.com/data/Vebnzrzj/versions/fTIdfb46/LuckPerms-Fabric-5.5.42.jar
+    integrity: sha256-7751bd843e143b081e60744d886bd5bf411ccd3be8dedf1782768fbca2115cec
+    dependencies: {}
+  essentialsx:
+    version: 2.21.2
+    fileName: EssentialsX-2.21.2.jar
+    downloadUrl: https://cdn.modrinth.com/data/hXiIvTyT/versions/Oa9ZDzZq/EssentialsX-2.21.2.jar
+    integrity: sha256-0b759026f02f3c547c32886f3666db3c1f94cff73e141ae5648313fd0d0bdfc6
+    dependencies: {}
+  worldedit:
+    version: 7.4.3
+    fileName: worldedit-bukkit-7.4.3.jar
+    downloadUrl: https://cdn.modrinth.com/data/1u6JkXh5/versions/yDUBafTJ/worldedit-bukkit-7.4.3.jar
+    integrity: sha256-2499a78d1a7ac340c37c24bd0d851118dae767c48bdbed699799f307b5f24b7b
+    dependencies: {}
+  worldguard:
+    version: 7.0.16
+    fileName: worldguard-bukkit-7.0.16.jar
+    downloadUrl: https://cdn.modrinth.com/data/DKY9btbd/versions/EZl3moba/worldguard-bukkit-7.0.16.jar
+    integrity: sha256-5db2c571ccb9c1ce05777230105bb4524adc7450d007da246c44e1282bf3880d
+    dependencies: {}
+  viaversion:
+    version: 5.9.2-SNAPSHOT+995
+    fileName: ViaVersion-5.9.2-SNAPSHOT.jar
+    downloadUrl: https://cdn.modrinth.com/data/P1OZGk5p/versions/bpOs8Bc5/ViaVersion-5.9.2-SNAPSHOT.jar
+    integrity: sha256-f836b1f700c4727fe8f7b01f483878a8c7d48562e3775c077440e8de6e60e87b
+    dependencies: {}
+  multiverse-core:
+    version: 5.6.2
+    fileName: multiverse-core-5.6.2.jar
+    downloadUrl: https://cdn.modrinth.com/data/3wmN97b8/versions/g7LecP9j/multiverse-core-5.6.2.jar
+    integrity: sha256-791a66defb23422c771cc1b972da210a1cee9374a61801ae8679ee3f4e98e2fc
+    dependencies: {}
+  multiverse-portals:
+    version: 5.2.2
+    fileName: multiverse-portals-5.2.2.jar
+    downloadUrl: https://cdn.modrinth.com/data/8VMk6P0I/versions/BguzNJ3r/multiverse-portals-5.2.2.jar
+    integrity: sha256-4596b66b9aca86275fee5bbd267ed5921a7309386273b1a73f9a25249747a80e
+    dependencies:
+      3wmN97b8: "*"
+  placeholderapi:
+    version: 2.12.2
+    fileName: PlaceholderAPI-2.12.2.jar
+    downloadUrl: https://cdn.modrinth.com/data/lKEzGugV/versions/UmbIiI5H/PlaceholderAPI-2.12.2.jar
+    integrity: sha256-ff76af20c7acf327ff2a28fb2dbd6694e3f946503e72635a5f7b6cb2e64fc014
+    dependencies: {}
