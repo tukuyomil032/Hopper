@@ -14,7 +14,7 @@ const ManifestSchema = z.object({
 
 export type Manifest = z.infer<typeof ManifestSchema>;
 
-export const MANIFEST_FILENAME = "hopper-plugin.json";
+export const MANIFEST_FILENAME = "hopper-plmanifest.json";
 
 export async function readManifest(cwd: string): Promise<Manifest | null> {
   const filePath = path.join(cwd, MANIFEST_FILENAME);
@@ -22,7 +22,9 @@ export async function readManifest(cwd: string): Promise<Manifest | null> {
   try {
     raw = await readFile(filePath, "utf8");
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
     throw new UserError(`Failed to read ${MANIFEST_FILENAME}: ${(e as Error).message}`);
   }
 
@@ -53,5 +55,12 @@ export async function addPlugin(cwd: string, name: string, range: string): Promi
     throw new UserError(`${MANIFEST_FILENAME} not found in ${cwd}`);
   }
   manifest.plugins[name] = range;
+  await writeManifest(cwd, manifest);
+}
+
+export async function removePlugin(cwd: string, name: string): Promise<void> {
+  const manifest = await readManifest(cwd);
+  if (manifest === null) return;
+  delete manifest.plugins[name];
   await writeManifest(cwd, manifest);
 }
