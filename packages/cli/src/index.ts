@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import gradient from "gradient-string";
 import { registerSearch } from "./commands/search.js";
 import { registerInfo } from "./commands/info.js";
 import { registerInstall } from "./commands/install.js";
@@ -8,6 +9,15 @@ import { registerRemove } from "./commands/remove.js";
 import { registerUpdate } from "./commands/update.js";
 import { registerInit } from "./commands/init.js";
 import { registerDoctor } from "./commands/doctor.js";
+
+const HOPPER_LOGO = `
+██╗  ██╗ ██████╗ ██████╗ ██████╗ ███████╗██████╗
+██║  ██║██╔═══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
+███████║██║   ██║██████╔╝██████╔╝█████╗  ██████╔╝
+██╔══██║██║   ██║██╔═══╝ ██╔═══╝ ██╔══╝  ██╔══██╗
+██║  ██║╚██████╔╝██║     ██║     ███████╗██║  ██║
+╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝
+`;
 
 const program = new Command();
 
@@ -31,5 +41,10 @@ registerRemove(program);
 registerUpdate(program);
 registerInit(program);
 registerDoctor(program);
+
+program.action(() => {
+  console.log(gradient(["#00e5ff", "#7b2ff7"])(HOPPER_LOGO));
+  program.help();
+});
 
 program.parse();

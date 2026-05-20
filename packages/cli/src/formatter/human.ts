@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import stringWidth from "string-width";
 import type { PluginDetail, PluginSummary, ResolvedPlugin } from "../registries/types.js";
 import type { ListEntry } from "../services/list.js";
 
@@ -81,9 +82,9 @@ export function printResolvedPlugins(plugins: ResolvedPlugin[]): void {
 }
 
 export function printInstalledList(entries: ListEntry[]): void {
-  const nameW = Math.max(4, ...entries.map((e) => e.name.length));
-  const verW = Math.max(7, ...entries.map((e) => e.version.length));
-  const srcW = Math.max(6, ...entries.map((e) => (e.source ?? "-").length));
+  const nameW = Math.max(4, ...entries.map((e) => stringWidth(e.name)));
+  const verW = Math.max(7, ...entries.map((e) => stringWidth(e.version)));
+  const srcW = Math.max(6, ...entries.map((e) => stringWidth(e.source ?? "-")));
 
   const header = [
     chalk.bold("NAME".padEnd(nameW)),
