@@ -22,7 +22,8 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "pnpm build && pnpm test"
+    "prepublishOnly": "cp ../../README.md ./README.md && pnpm build && pnpm test",
+    "postpublish": "rm -f ./README.md"
   },
   "keywords": [
     "cli",
