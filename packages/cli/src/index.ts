@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name("hopper")
   .description("Minecraft plugin manager — the npm for your server")
-  .version("0.1.0")
+  .version("0.0.15")
   .option("--cwd <path>", "working directory", process.cwd())
   .option("--plugins-dir <path>", "plugins folder path")
   .option("--registry-url <url>", "override registry API URL")
