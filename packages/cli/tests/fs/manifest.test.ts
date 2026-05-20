@@ -38,11 +38,7 @@ describe("readManifest", () => {
   });
 
   it("reads valid manifest", async () => {
-    await writeFile(
-      path.join(tmpDir, MANIFEST_FILENAME),
-      JSON.stringify(baseManifest),
-      "utf8",
-    );
+    await writeFile(path.join(tmpDir, MANIFEST_FILENAME), JSON.stringify(baseManifest), "utf8");
     const result = await readManifest(tmpDir);
     expect(result?.name).toBe("test-server");
     expect(result?.server.platform).toBe("paper");
@@ -54,11 +50,7 @@ describe("readManifest", () => {
   });
 
   it("throws UserError on schema mismatch", async () => {
-    await writeFile(
-      path.join(tmpDir, MANIFEST_FILENAME),
-      JSON.stringify({ name: 123 }),
-      "utf8",
-    );
+    await writeFile(path.join(tmpDir, MANIFEST_FILENAME), JSON.stringify({ name: 123 }), "utf8");
     await expect(readManifest(tmpDir)).rejects.toBeInstanceOf(UserError);
   });
 });

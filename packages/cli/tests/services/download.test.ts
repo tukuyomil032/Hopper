@@ -43,15 +43,15 @@ describe("downloadFile", () => {
 
   it("throws NetworkError on non-2xx response", async () => {
     mockFetch("not found", 404);
-    await expect(downloadFile("https://example.com/bad.jar", tmpDir, "bad.jar")).rejects.toBeInstanceOf(
-      NetworkError,
-    );
+    await expect(
+      downloadFile("https://example.com/bad.jar", tmpDir, "bad.jar"),
+    ).rejects.toBeInstanceOf(NetworkError);
   });
 
   it("throws NetworkError when fetch throws", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
-    await expect(downloadFile("https://example.com/fail.jar", tmpDir, "fail.jar")).rejects.toBeInstanceOf(
-      NetworkError,
-    );
+    await expect(
+      downloadFile("https://example.com/fail.jar", tmpDir, "fail.jar"),
+    ).rejects.toBeInstanceOf(NetworkError);
   });
 });
