@@ -61,7 +61,7 @@ jobs:
       - name: Publish to npm
         if: steps.check.outputs.skip == 'false'
         working-directory: packages/cli
-        run: npm publish --access public --provenance
+        run: npm publish
 
       - name: Create GitHub Release
         if: steps.check.outputs.skip == 'false'
