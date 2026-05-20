@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import * as path from "node:path";
+import { parse, stringify } from "yaml";
 import { z } from "zod";
 import { UserError } from "../services/errors.js";
 
@@ -26,7 +27,7 @@ const LockSchema = z.object({
 export type Lock = z.infer<typeof LockSchema>;
 export type LockEntry = z.infer<typeof LockEntrySchema>;
 
-export const LOCK_FILENAME = "hopper-plugin-lock.json";
+export const LOCK_FILENAME = "hopper-lock.yaml";
 
 export async function readLock(cwd: string): Promise<Lock | null> {
   const filePath = path.join(cwd, LOCK_FILENAME);
@@ -34,15 +35,17 @@ export async function readLock(cwd: string): Promise<Lock | null> {
   try {
     raw = await readFile(filePath, "utf8");
   } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
     throw new UserError(`Failed to read ${LOCK_FILENAME}: ${(e as Error).message}`);
   }
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = parse(raw) as unknown;
   } catch {
-    throw new UserError(`${LOCK_FILENAME} is not valid JSON`);
+    throw new UserError(`${LOCK_FILENAME} is not valid YAML`);
   }
 
   const result = LockSchema.safeParse(parsed);
@@ -57,7 +60,7 @@ export async function readLock(cwd: string): Promise<Lock | null> {
 export async function writeLock(cwd: string, lock: Lock): Promise<void> {
   const updated: Lock = { ...lock, generatedAt: new Date().toISOString() };
   const filePath = path.join(cwd, LOCK_FILENAME);
-  await writeFile(filePath, JSON.stringify(updated, null, 2) + "\n", "utf8");
+  await writeFile(filePath, stringify(updated), "utf8");
 }
 
 export function createEmptyLock(server?: { platform: string; minecraftVersion: string }): Lock {
