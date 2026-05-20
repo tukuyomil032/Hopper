@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org/
 
@@ -62,8 +62,6 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         working-directory: packages/cli
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.check.outputs.skip == 'false'
