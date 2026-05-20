@@ -1,5 +1,5 @@
 {
-  "name": "hopper",
+  "name": "@tukuyomil032/hopper",
   "version": "0.1.0",
   "description": "Minecraft plugin manager — the npm for your server",
   "license": "MIT",
@@ -45,5 +45,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
