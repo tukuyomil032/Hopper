@@ -15,10 +15,4 @@
     "oxfmt": "^0.51.0",
     "oxlint": "^0.16.7"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lefthook"
-    ]
-  }
 }
