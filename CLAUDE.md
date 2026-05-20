@@ -28,16 +28,16 @@ packages/cli/src/
 
 ## コマンド
 
-| コマンド | 説明 |
-|---------|------|
-| install | プラグインをインストール |
-| search  | プラグインを検索 |
-| info    | プラグイン詳細表示 |
-| list    | インストール済み一覧 |
-| remove  | プラグインを削除 |
-| update  | プラグインを更新 |
-| init    | hopper-plugin.json を初期化 |
-| doctor  | 環境診断 |
+| コマンド | 説明                        |
+| -------- | --------------------------- |
+| install  | プラグインをインストール    |
+| search   | プラグインを検索            |
+| info     | プラグイン詳細表示          |
+| list     | インストール済み一覧        |
+| remove   | プラグインを削除            |
+| update   | プラグインを更新            |
+| init     | hopper-plugin.json を初期化 |
+| doctor   | 環境診断                    |
 
 ## ビルド・開発
 
@@ -51,30 +51,34 @@ pnpm -C packages/cli typecheck   # tsc --noEmit
 
 ## 重要ファイル
 
-| ファイル | 説明 |
-|---------|------|
-| `hopper-plugin.json` | プラグイン定義（マニフェスト） |
-| `hopper-plugin-lock.json` | ロックファイル |
-| `.hopper/installed.json` | インストール履歴 |
+| ファイル                  | 説明                           |
+| ------------------------- | ------------------------------ |
+| `hopper-plugin.json`      | プラグイン定義（マニフェスト） |
+| `hopper-plugin-lock.json` | ロックファイル                 |
+| `.hopper/installed.json`  | インストール履歴               |
 
 ## 実装パターン
 
 ### コマンド層 (`commands/`)
+
 - `cmd.parent?.opts()` でグローバルオプション (`cwd`, `pluginsDir`, `json`, `silent`) を取得
 - `ora({ isSilent: ... })` でスピナー、`--json` で JSON 出力切り替え
 - エラー時は `spinner.fail()` → `process.exit(1)`
 
 ### サービス層 (`services/`)
+
 - `XxxOptions` / `XxxResult` インターフェースを明示定義
 - `onProgress?: (msg: string) => void` コールバックで進捗通知
 - `dryRun` 時はファイル書き込み・削除をスキップ
 
 ### fs 層 (`fs/`)
+
 - ENOENT → null または空配列を返す（エラーにしない）
 - パース失敗 → `UserError` を投げる
 - Zod スキーマで読み書き両方を検証
 
 ### エラー種別 (`services/errors.ts`)
+
 `UserError`, `NetworkError`, `ResolveError`, `FileSystemError`, `RegistryError`
 
 ## グローバルオプション

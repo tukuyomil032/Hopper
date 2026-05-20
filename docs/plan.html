@@ -1,840 +1,1871 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>hopper — Implementation Plan</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface2: #21262d;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --modrinth: #1bd96a;
-    --hangar: #f57c00;
-    --accent: #58a6ff;
-    --danger: #f85149;
-    --warning: #d29922;
-    --radius: 8px;
-    --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 15px;
-    line-height: 1.6;
-    min-height: 100vh;
-  }
-
-  /* ── Layout ── */
-  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
-
-  /* ── Sidebar ── */
-  .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 24px 0;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-  .sidebar-logo {
-    padding: 0 20px 20px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 12px;
-  }
-  .sidebar-logo h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .sidebar-logo .badge {
-    font-size: 11px;
-    background: var(--modrinth);
-    color: #000;
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-weight: 600;
-  }
-  .sidebar-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-  .nav-section { padding: 0 12px; margin-bottom: 8px; }
-  .nav-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 8px 4px; }
-  .nav-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 13.5px;
-    transition: all 0.15s;
-    cursor: pointer;
-  }
-  .nav-link:hover { background: var(--surface2); color: var(--text); }
-  .nav-link.active { background: var(--accent)22; color: var(--accent); }
-  .nav-link .phase-num {
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    background: var(--surface2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  /* ── Main ── */
-  .main { padding: 40px 48px; max-width: 1100px; }
-
-  /* ── Search bar ── */
-  .search-wrap { margin-bottom: 32px; }
-  .search-input {
-    width: 100%;
-    max-width: 480px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    font-size: 14px;
-    padding: 10px 16px 10px 40px;
-    outline: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 14px center;
-    transition: border-color 0.2s;
-  }
-  .search-input:focus { border-color: var(--accent); }
-  .search-input::placeholder { color: var(--text-muted); }
-
-  /* ── Hero ── */
-  .hero {
-    background: linear-gradient(135deg, var(--surface) 0%, #0d2818 100%);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 40px;
-    margin-bottom: 40px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 200px; height: 200px;
-    background: var(--modrinth);
-    opacity: 0.05;
-    border-radius: 50%;
-  }
-  .hero h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-  .hero p { color: var(--text-muted); max-width: 560px; }
-  .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
-  .meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
-  .meta-item strong { color: var(--text); }
-
-  /* ── Section headings ── */
-  .section { margin-bottom: 48px; }
-  .section-header {
-    display: flex; align-items: center; gap: 12px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 12px;
-    margin-bottom: 24px;
-  }
-  .section-header h2 { font-size: 20px; font-weight: 600; }
-  .section-icon { font-size: 22px; }
-
-  /* ── Cards ── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-  }
-  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-  .tech-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .tech-card .name { font-weight: 600; font-size: 14px; }
-  .tech-card .role { font-size: 12px; color: var(--text-muted); }
-  .tech-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    width: fit-content;
-  }
-  .badge-green { background: #1bd96a22; color: var(--modrinth); }
-  .badge-orange { background: #f57c0022; color: var(--hangar); }
-  .badge-blue { background: #58a6ff22; color: var(--accent); }
-  .badge-gray { background: var(--surface2); color: var(--text-muted); }
-
-  /* ── SVG Architecture ── */
-  .arch-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; overflow-x: auto; }
-  .arch-wrap svg { display: block; margin: 0 auto; }
-
-  /* ── Commands table ── */
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th {
-    text-align: left;
-    padding: 10px 14px;
-    background: var(--surface2);
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border);
-  }
-  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--surface2); }
-  .cmd-name { font-family: var(--mono); color: var(--modrinth); font-size: 13px; white-space: nowrap; }
-  .cmd-desc { color: var(--text-muted); }
-  .cmd-phase { font-size: 12px; }
-
-  /* ── Code blocks ── */
-  pre {
-    background: #010409;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    overflow-x: auto;
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.7;
-  }
-  code { font-family: var(--mono); font-size: 13px; }
-  .inline-code {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: #e6edf3;
-  }
-  .kw { color: #ff7b72; }
-  .str { color: #a5d6ff; }
-  .cmt { color: #8b949e; font-style: italic; }
-  .fn { color: #d2a8ff; }
-  .val { color: #79c0ff; }
-  .type { color: #ffa657; }
-
-  /* ── Phase accordion ── */
-  .phase-list { display: flex; flex-direction: column; gap: 12px; }
-  .phase-item {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    transition: border-color 0.2s;
-  }
-  .phase-item:hover { border-color: var(--accent)66; }
-  .phase-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.15s;
-  }
-  .phase-header:hover { background: var(--surface2); }
-  .phase-num-badge {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .p0 { background: #8b949e33; color: #8b949e; }
-  .p1 { background: #58a6ff22; color: #58a6ff; }
-  .p2 { background: #1bd96a22; color: #1bd96a; }
-  .p3 { background: #f57c0022; color: #f57c00; }
-  .p4 { background: #d2992222; color: #d29922; }
-  .p5 { background: #bc8cff22; color: #bc8cff; }
-  .p6 { background: #ff7b7222; color: #ff7b72; }
-  .p7 { background: #39d35322; color: #39d353; }
-  .phase-title { font-weight: 600; flex: 1; }
-  .phase-subtitle { font-size: 13px; color: var(--text-muted); }
-  .phase-toggle {
-    width: 20px; height: 20px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text-muted);
-    font-size: 12px;
-    transition: transform 0.2s;
-  }
-  .phase-item.open .phase-toggle { transform: rotate(180deg); }
-  .phase-body {
-    display: none;
-    padding: 0 20px 20px;
-    border-top: 1px solid var(--border);
-    animation: fadeIn 0.2s ease;
-  }
-  .phase-item.open .phase-body { display: block; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* ── Task list ── */
-  .task-table { width: 100%; margin-top: 16px; }
-  .task-row { display: grid; grid-template-columns: 28px 1fr 180px 100px; gap: 8px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--border)66; font-size: 13px; }
-  .task-row:last-child { border-bottom: none; }
-  .task-check { color: var(--text-muted); font-size: 16px; }
-  .task-name { font-weight: 500; }
-  .task-file { font-family: var(--mono); font-size: 11px; color: var(--text-muted); line-height: 1.5; }
-  .task-est { color: var(--text-muted); font-size: 12px; }
-
-  /* ── Flow diagram ── */
-  .flow-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; overflow-x: auto; }
-
-  /* ── Tab component ── */
-  .tabs { margin-bottom: 24px; }
-  .tab-list { display: flex; gap: 2px; background: var(--surface2); border-radius: var(--radius); padding: 3px; width: fit-content; margin-bottom: 16px; }
-  .tab-btn {
-    padding: 6px 16px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .tab-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-
-  /* ── File tree ── */
-  .file-tree {
-    background: #010409;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 2;
-  }
-  .tree-dir { color: var(--accent); }
-  .tree-file { color: var(--text); }
-  .tree-new { color: var(--modrinth); }
-  .tree-indent { color: var(--border); }
-
-  /* ── Progress bar ── */
-  .progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px; }
-  .progress-label { width: 80px; flex-shrink: 0; color: var(--text-muted); }
-  .progress-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
-  .progress-pct { width: 36px; text-align: right; font-size: 12px; color: var(--text-muted); }
-
-  /* ── Hidden by search ── */
-  .hidden { display: none !important; }
-
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  @media (max-width: 900px) {
-    .app { grid-template-columns: 1fr; }
-    .sidebar { position: static; height: auto; }
-    .main { padding: 24px 20px; }
-    .task-row { grid-template-columns: 28px 1fr; }
-    .task-file, .task-est { grid-column: 2; }
-  }
-</style>
-</head>
-<body>
-<div class="app">
-
-<!-- ══════════════ SIDEBAR ══════════════ -->
-<aside class="sidebar">
-  <div class="sidebar-logo">
-    <h1>🪣 hopper <span class="badge">CLI</span></h1>
-    <p>Minecraft Plugin Manager</p>
-  </div>
-
-  <div class="nav-section">
-    <div class="nav-label">Overview</div>
-    <a class="nav-link active" onclick="scrollTo('overview')">📋 概要・スタック</a>
-    <a class="nav-link" onclick="scrollTo('commands')">⌨️ コマンド一覧</a>
-    <a class="nav-link" onclick="scrollTo('arch')">🏗️ アーキテクチャ</a>
-    <a class="nav-link" onclick="scrollTo('flow')">🔄 インストールフロー</a>
-    <a class="nav-link" onclick="scrollTo('files')">📁 ファイル構成</a>
-  </div>
-
-  <div class="nav-section">
-    <div class="nav-label">Implementation Phases</div>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num p0" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#8b949e33;color:#8b949e">0</span>
-      Phase 0: 事前準備
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#58a6ff22;color:#58a6ff">1</span>
-      Phase 1: Monorepo + Registry
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#1bd96a22;color:#1bd96a">2</span>
-      Phase 2: search / info
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#f57c0022;color:#f57c00">3</span>
-      Phase 3: fs + install
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#d2992222;color:#d29922">4</span>
-      Phase 4: list / remove / update
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#bc8cff22;color:#bc8cff">5</span>
-      Phase 5: init / doctor
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#ff7b7222;color:#ff7b72">6</span>
-      Phase 6: テスト
-    </a>
-    <a class="nav-link" onclick="scrollTo('phases')">
-      <span class="phase-num" style="width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#39d35322;color:#39d353">7</span>
-      Phase 7: npm publish
-    </a>
-  </div>
-
-  <div class="nav-section" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
-    <div style="padding:8px;font-size:12px;color:var(--text-muted)">
-      📅 Generated: 2026-05-19<br>
-      🔖 v0.1.0-plan
-    </div>
-  </div>
-</aside>
-
-<!-- ══════════════ MAIN ══════════════ -->
-<main class="main">
-
-  <!-- Search -->
-  <div class="search-wrap">
-    <input class="search-input" type="text" id="searchInput" placeholder="フェーズ・タスク・ファイル名で絞り込み..." oninput="filterPhases(this.value)">
-  </div>
-
-  <!-- ── Hero ── -->
-  <div class="hero" id="overview">
-    <h2>🪣 hopper — Minecraft Plugin Manager CLI</h2>
-    <p>npm 風の操作感で Minecraft Java Edition プラグインを管理。Modrinth と Hangar を同時クエリして最適な結果をマージする。</p>
-    <div class="hero-meta">
-      <div class="meta-item">🛠️ <strong>Node.js + TypeScript</strong></div>
-      <div class="meta-item">📦 <strong>pnpm workspaces</strong></div>
-      <div class="meta-item">🧪 <strong>Vitest</strong></div>
-      <div class="meta-item">🚀 <strong>npm publish</strong></div>
-      <div class="meta-item">⚡ <strong>oxlint + oxfmt</strong></div>
-      <div class="meta-item">🔗 <strong>Lefthook (git hooks)</strong></div>
-    </div>
-  </div>
-
-  <!-- ── Tech Stack ── -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">🧰</span>
-      <h2>技術スタック</h2>
-    </div>
-    <div class="card-grid">
-      <div class="tech-card">
-        <div class="name">Commander.js</div>
-        <div class="role">CLIフレームワーク</div>
-        <div class="tech-badge badge-blue">core</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">chalk</div>
-        <div class="role">ターミナル色付け</div>
-        <div class="tech-badge badge-blue">output</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">ora</div>
-        <div class="role">スピナー・進捗表示</div>
-        <div class="tech-badge badge-blue">output</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">Modrinth API</div>
-        <div class="role">プライマリデータソース</div>
-        <div class="tech-badge badge-green">registry</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">Hangar API</div>
-        <div class="role">セカンダリデータソース</div>
-        <div class="tech-badge badge-orange">registry</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">Vitest</div>
-        <div class="role">ユニット・統合テスト</div>
-        <div class="tech-badge badge-gray">test</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">oxlint</div>
-        <div class="role">高速 Linter (Rust製)</div>
-        <div class="tech-badge badge-gray">tooling</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">Lefthook</div>
-        <div class="role">Git フック管理</div>
-        <div class="tech-badge badge-gray">tooling</div>
-      </div>
-      <div class="tech-card">
-        <div class="name">just</div>
-        <div class="role">タスクランナー</div>
-        <div class="tech-badge badge-gray">tooling</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Commands ── -->
-  <div class="section" id="commands">
-    <div class="section-header">
-      <span class="section-icon">⌨️</span>
-      <h2>コマンド一覧</h2>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>コマンド</th>
-          <th>説明</th>
-          <th>実装フェーズ</th>
-          <th>優先度</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><span class="cmd-name">hopper search &lt;query&gt;</span></td>
-          <td class="cmd-desc">Modrinth + Hangar を同時クエリしてプラグインを検索、マージ結果を表示</td>
-          <td class="cmd-phase"><span class="tech-badge badge-green">Phase 2</span></td>
-          <td><span class="tech-badge badge-blue">High</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper info &lt;name&gt;</span></td>
-          <td class="cmd-desc">プラグインの詳細情報（バージョン・依存・ライセンス）を表示</td>
-          <td class="cmd-phase"><span class="tech-badge badge-green">Phase 2</span></td>
-          <td><span class="tech-badge badge-blue">High</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper install [name[@ver]]</span></td>
-          <td class="cmd-desc">指定プラグインをダウンロード・インストール。引数なしは manifest から</td>
-          <td class="cmd-phase"><span class="tech-badge badge-orange">Phase 3</span></td>
-          <td><span class="tech-badge badge-blue">High</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper list</span></td>
-          <td class="cmd-desc">インストール済みプラグイン一覧を表示</td>
-          <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
-          <td><span class="tech-badge badge-gray">Mid</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper remove &lt;name&gt;</span></td>
-          <td class="cmd-desc">プラグインを削除し manifest・lock を更新</td>
-          <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
-          <td><span class="tech-badge badge-gray">Mid</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper update [name]</span></td>
-          <td class="cmd-desc">プラグインを最新バージョンに更新。引数なしは全て更新</td>
-          <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
-          <td><span class="tech-badge badge-gray">Mid</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper init</span></td>
-          <td class="cmd-desc">対話式で <code class="inline-code">hopper-plugin.json</code> を生成</td>
-          <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 5</span></td>
-          <td><span class="tech-badge badge-gray">Low</span></td>
-        </tr>
-        <tr>
-          <td><span class="cmd-name">hopper doctor</span></td>
-          <td class="cmd-desc">Java バージョン・plugins/ ディレクトリ・ネットワーク接続を診断</td>
-          <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 5</span></td>
-          <td><span class="tech-badge badge-gray">Low</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ── Architecture SVG ── -->
-  <div class="section" id="arch">
-    <div class="section-header">
-      <span class="section-icon">🏗️</span>
-      <h2>アーキテクチャ図</h2>
-    </div>
-    <div class="arch-wrap">
-      <svg width="860" height="360" viewBox="0 0 860 360" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif">
-        <defs>
-          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff" opacity="0.7"/>
-          </marker>
-          <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#1bd96a" opacity="0.7"/>
-          </marker>
-          <marker id="arr-o" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#f57c00" opacity="0.7"/>
-          </marker>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-
-        <!-- Layer labels -->
-        <text x="12" y="60" fill="#8b949e" font-size="10" font-weight="600" letter-spacing="1">USER</text>
-        <text x="12" y="155" fill="#8b949e" font-size="10" font-weight="600" letter-spacing="1">CLI</text>
-        <text x="12" y="250" fill="#8b949e" font-size="10" font-weight="600" letter-spacing="1">REGISTRY</text>
-        <text x="12" y="340" fill="#8b949e" font-size="10" font-weight="600" letter-spacing="1">FS</text>
-
-        <!-- Layer bg -->
-        <rect x="70" y="30" width="770" height="52" rx="6" fill="#161b2200" stroke="#30363d" stroke-width="1"/>
-        <rect x="70" y="120" width="770" height="66" rx="6" fill="#161b2200" stroke="#30363d" stroke-width="1"/>
-        <rect x="70" y="220" width="770" height="66" rx="6" fill="#161b2200" stroke="#30363d" stroke-width="1"/>
-        <rect x="70" y="314" width="770" height="36" rx="6" fill="#161b2200" stroke="#30363d" stroke-width="1"/>
-
-        <!-- Terminal box -->
-        <rect x="90" y="38" width="140" height="36" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="160" y="62" fill="#58a6ff" font-size="13" font-weight="700" text-anchor="middle">$ hopper ...</text>
-
-        <!-- Commander.js -->
-        <rect x="280" y="128" width="120" height="50" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-        <text x="340" y="149" fill="#e6edf3" font-size="12" font-weight="600" text-anchor="middle">Commander.js</text>
-        <text x="340" y="166" fill="#8b949e" font-size="10" text-anchor="middle">Command Router</text>
-
-        <!-- Commands -->
-        <rect x="430" y="128" width="90" height="50" rx="6" fill="#21262d" stroke="#30363d" stroke-width="1"/>
-        <text x="475" y="149" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">commands/</text>
-        <text x="475" y="165" fill="#8b949e" font-size="10" text-anchor="middle">8 commands</text>
-
-        <!-- Services -->
-        <rect x="550" y="128" width="90" height="50" rx="6" fill="#21262d" stroke="#30363d" stroke-width="1"/>
-        <text x="595" y="149" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">services/</text>
-        <text x="595" y="165" fill="#8b949e" font-size="10" text-anchor="middle">install/update</text>
-
-        <!-- Formatter -->
-        <rect x="670" y="128" width="90" height="50" rx="6" fill="#21262d" stroke="#30363d" stroke-width="1"/>
-        <text x="715" y="149" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">formatter/</text>
-        <text x="715" y="165" fill="#8b949e" font-size="10" text-anchor="middle">human / json</text>
-
-        <!-- multi.ts -->
-        <rect x="280" y="228" width="120" height="50" rx="6" fill="#21262d" stroke="#8b949e" stroke-width="1.5"/>
-        <text x="340" y="249" fill="#e6edf3" font-size="12" font-weight="600" text-anchor="middle">multi.ts</text>
-        <text x="340" y="266" fill="#8b949e" font-size="10" text-anchor="middle">Result Merger</text>
-
-        <!-- Modrinth -->
-        <rect x="430" y="228" width="110" height="50" rx="6" fill="#0d2818" stroke="#1bd96a" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="485" y="249" fill="#1bd96a" font-size="12" font-weight="700" text-anchor="middle">Modrinth</text>
-        <text x="485" y="266" fill="#8b949e" font-size="10" text-anchor="middle">Primary Source</text>
-
-        <!-- Hangar -->
-        <rect x="570" y="228" width="110" height="50" rx="6" fill="#1a0d00" stroke="#f57c00" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="625" y="249" fill="#f57c00" font-size="12" font-weight="700" text-anchor="middle">Hangar</text>
-        <text x="625" y="266" fill="#8b949e" font-size="10" text-anchor="middle">Secondary Source</text>
-
-        <!-- FS Layer -->
-        <rect x="90" y="320" width="100" height="24" rx="5" fill="#21262d" stroke="#30363d"/>
-        <text x="140" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">manifest.ts</text>
-
-        <rect x="210" y="320" width="90" height="24" rx="5" fill="#21262d" stroke="#30363d"/>
-        <text x="255" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">lock.ts</text>
-
-        <rect x="320" y="320" width="110" height="24" rx="5" fill="#21262d" stroke="#30363d"/>
-        <text x="375" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">installed.ts</text>
-
-        <rect x="450" y="320" width="110" height="24" rx="5" fill="#21262d" stroke="#30363d"/>
-        <text x="505" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">download.ts</text>
-
-        <!-- Arrows: user → commander -->
-        <line x1="230" y1="56" x2="278" y2="153" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)" opacity="0.7"/>
-
-        <!-- commander → commands -->
-        <line x1="400" y1="153" x2="428" y2="153" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)" opacity="0.7"/>
-
-        <!-- commands → services -->
-        <line x1="520" y1="153" x2="548" y2="153" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arr)" opacity="0.6"/>
-
-        <!-- commands → multi -->
-        <line x1="475" y1="178" x2="400" y2="228" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arr)" opacity="0.6"/>
-
-        <!-- multi → modrinth -->
-        <line x1="400" y1="253" x2="428" y2="253" stroke="#1bd96a" stroke-width="1.5" marker-end="url(#arr-g)" opacity="0.7"/>
-
-        <!-- multi → hangar -->
-        <line x1="400" y1="260" x2="428" y2="268" stroke="#f57c00" stroke-width="1.5" marker-end="url(#arr-o)" opacity="0.7"/>
-
-        <!-- services → fs -->
-        <line x1="595" y1="178" x2="375" y2="320" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arr)" opacity="0.5"/>
-
-        <!-- Promise.all label -->
-        <rect x="395" y="235" width="26" height="14" rx="3" fill="#0d1117"/>
-        <text x="408" y="246" fill="#8b949e" font-size="9" text-anchor="middle">race</text>
-      </svg>
-    </div>
-  </div>
-
-  <!-- ── Install Flow ── -->
-  <div class="section" id="flow">
-    <div class="section-header">
-      <span class="section-icon">🔄</span>
-      <h2>インストールフロー (hopper install)</h2>
-    </div>
-    <div class="flow-wrap">
-      <svg width="820" height="280" viewBox="0 0 820 280" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif">
-        <defs>
-          <marker id="fa" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L7,3 z" fill="#58a6ff88"/>
-          </marker>
-          <marker id="fa-g" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L7,3 z" fill="#1bd96a88"/>
-          </marker>
-          <marker id="fa-r" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L7,3 z" fill="#f8514988"/>
-          </marker>
-        </defs>
-
-        <!-- Step boxes -->
-        <!-- Step 1: parse arg -->
-        <rect x="20" y="110" width="110" height="44" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-        <text x="75" y="128" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">引数パース</text>
-        <text x="75" y="143" fill="#8b949e" font-size="10" text-anchor="middle">name@version</text>
-
-        <!-- Step 2: manifest check -->
-        <rect x="160" y="110" width="110" height="44" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-        <text x="215" y="128" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">manifest 確認</text>
-        <text x="215" y="143" fill="#8b949e" font-size="10" text-anchor="middle">lock check</text>
-
-        <!-- Diamond: cached? -->
-        <polygon points="320,132 350,110 380,132 350,154" fill="#21262d" stroke="#d29922" stroke-width="1.5"/>
-        <text x="350" y="128" fill="#d29922" font-size="10" font-weight="600" text-anchor="middle">cache</text>
-        <text x="350" y="142" fill="#d29922" font-size="9" text-anchor="middle">hit?</text>
-
-        <!-- Cache hit path -->
-        <rect x="320" y="38" width="60" height="30" rx="5" fill="#0d2818" stroke="#1bd96a" stroke-width="1"/>
-        <text x="350" y="59" fill="#1bd96a" font-size="10" font-weight="600" text-anchor="middle">skip DL</text>
-
-        <!-- Step 3: multi query -->
-        <rect x="410" y="110" width="110" height="44" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-        <text x="465" y="128" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">Multi Registry</text>
-        <text x="465" y="143" fill="#8b949e" font-size="10" text-anchor="middle">Promise.allSettled</text>
-
-        <!-- Modrinth + Hangar parallel -->
-        <rect x="400" y="200" width="80" height="32" rx="5" fill="#0d2818" stroke="#1bd96a" stroke-width="1"/>
-        <text x="440" y="221" fill="#1bd96a" font-size="10" font-weight="700" text-anchor="middle">Modrinth</text>
-        <rect x="500" y="200" width="80" height="32" rx="5" fill="#1a0d00" stroke="#f57c00" stroke-width="1"/>
-        <text x="540" y="221" fill="#f57c00" font-size="10" font-weight="700" text-anchor="middle">Hangar</text>
-
-        <!-- Step 4: download -->
-        <rect x="560" y="110" width="100" height="44" rx="6" fill="#21262d" stroke="#58a6ff" stroke-width="1.5"/>
-        <text x="610" y="128" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">JAR DL</text>
-        <text x="610" y="143" fill="#8b949e" font-size="10" text-anchor="middle">stream + sha256</text>
-
-        <!-- Step 5: write -->
-        <rect x="690" y="110" width="110" height="44" rx="6" fill="#21262d" stroke="#1bd96a" stroke-width="1.5"/>
-        <text x="745" y="128" fill="#1bd96a" font-size="11" font-weight="600" text-anchor="middle">FS 書き込み</text>
-        <text x="745" y="143" fill="#8b949e" font-size="10" text-anchor="middle">lock + installed</text>
-
-        <!-- Arrows -->
-        <line x1="130" y1="132" x2="158" y2="132" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#fa)"/>
-        <line x1="270" y1="132" x2="318" y2="132" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#fa)"/>
-        <!-- cache miss -->
-        <line x1="380" y1="132" x2="408" y2="132" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#fa)"/>
-        <text x="394" y="126" fill="#8b949e" font-size="9" text-anchor="middle">miss</text>
-        <!-- cache hit up -->
-        <line x1="350" y1="110" x2="350" y2="70" stroke="#1bd96a" stroke-width="1.2" marker-end="url(#fa-g)"/>
-        <text x="358" y="94" fill="#1bd96a" font-size="9">hit</text>
-        <!-- multi → parallel -->
-        <line x1="440" y1="154" x2="440" y2="198" stroke="#1bd96a" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#fa-g)"/>
-        <line x1="490" y1="154" x2="540" y2="198" stroke="#f57c00" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#fa)"/>
-        <!-- multi → download -->
-        <line x1="520" y1="132" x2="558" y2="132" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#fa)"/>
-        <!-- download → write -->
-        <line x1="660" y1="132" x2="688" y2="132" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#fa)"/>
-
-        <!-- ora spinner label -->
-        <rect x="562" y="86" width="96" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="610" y="99" fill="#d29922" font-size="9" text-anchor="middle">⠋ ora spinner</text>
-      </svg>
-    </div>
-  </div>
-
-  <!-- ── File Tree ── -->
-  <div class="section" id="files">
-    <div class="section-header">
-      <span class="section-icon">📁</span>
-      <h2>ファイル構成</h2>
-    </div>
-    <div class="tabs">
-      <div class="tab-list">
-        <button class="tab-btn active" onclick="switchTab('tree', this)">ツリー</button>
-        <button class="tab-btn" onclick="switchTab('snippet', this)">コードサンプル</button>
-        <button class="tab-btn" onclick="switchTab('api', this)">API 型定義</button>
-      </div>
-
-      <div class="tab-panel active" id="tab-tree">
-        <div class="file-tree">
-<span class="tree-dir">hopper/</span>
-├── <span class="tree-dir">packages/</span>
-│   └── <span class="tree-dir">cli/</span>
-│       ├── <span class="tree-file">package.json</span>
-│       ├── <span class="tree-file">tsconfig.json</span>
-│       ├── <span class="tree-dir">src/</span>
-│       │   ├── <span class="tree-new">index.ts</span>               <span class="cmt"># エントリポイント</span>
-│       │   ├── <span class="tree-dir">commands/</span>
-│       │   │   ├── <span class="tree-new">search.ts</span>
-│       │   │   ├── <span class="tree-new">info.ts</span>
-│       │   │   ├── <span class="tree-new">install.ts</span>
-│       │   │   ├── <span class="tree-new">list.ts</span>
-│       │   │   ├── <span class="tree-new">remove.ts</span>
-│       │   │   ├── <span class="tree-new">update.ts</span>
-│       │   │   ├── <span class="tree-new">init.ts</span>
-│       │   │   └── <span class="tree-new">doctor.ts</span>
-│       │   ├── <span class="tree-dir">registries/</span>
-│       │   │   ├── <span class="tree-new">types.ts</span>              <span class="cmt"># 共通型定義</span>
-│       │   │   ├── <span class="tree-new">modrinth.ts</span>           <span class="cmt"># Modrinth API クライアント</span>
-│       │   │   ├── <span class="tree-new">hangar.ts</span>             <span class="cmt"># Hangar API クライアント</span>
-│       │   │   └── <span class="tree-new">multi.ts</span>              <span class="cmt"># マルチ検索・マージ</span>
-│       │   ├── <span class="tree-dir">services/</span>
-│       │   │   ├── <span class="tree-new">install.ts</span>
-│       │   │   ├── <span class="tree-new">remove.ts</span>
-│       │   │   ├── <span class="tree-new">update.ts</span>
-│       │   │   └── <span class="tree-new">download.ts</span>
-│       │   ├── <span class="tree-dir">fs/</span>
-│       │   │   ├── <span class="tree-new">manifest.ts</span>           <span class="cmt"># hopper-plugin.json 操作</span>
-│       │   │   ├── <span class="tree-new">lock.ts</span>               <span class="cmt"># hopper-lock.json 操作</span>
-│       │   │   └── <span class="tree-new">installed.ts</span>          <span class="cmt"># installed.json 操作</span>
-│       │   └── <span class="tree-dir">formatter/</span>
-│       │       ├── <span class="tree-new">human.ts</span>
-│       │       └── <span class="tree-new">json-output.ts</span>
-│       └── <span class="tree-dir">tests/</span>
-│           ├── <span class="tree-new">modrinth.test.ts</span>
-│           ├── <span class="tree-new">hangar.test.ts</span>
-│           ├── <span class="tree-new">multi.test.ts</span>
-│           ├── <span class="tree-new">install.test.ts</span>
-│           └── <span class="tree-new">manifest.test.ts</span>
-├── <span class="tree-file">pnpm-workspace.yaml</span>
-├── <span class="tree-file">package.json</span>              <span class="cmt"># root workspace</span>
-├── <span class="tree-file">justfile</span>
-├── <span class="tree-file">lefthook.yml</span>
-└── <span class="tree-dir">docs/</span>
-    └── <span class="tree-file">plan.html</span>             <span class="cmt"># ← このファイル</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>hopper — Implementation Plan</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --surface2: #21262d;
+        --border: #30363d;
+        --text: #e6edf3;
+        --text-muted: #8b949e;
+        --modrinth: #1bd96a;
+        --hangar: #f57c00;
+        --accent: #58a6ff;
+        --danger: #f85149;
+        --warning: #d29922;
+        --radius: 8px;
+        --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+        --mono: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 15px;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      /* ── Layout ── */
+      .app {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+
+      /* ── Sidebar ── */
+      .sidebar {
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        padding: 24px 0;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .sidebar-logo {
+        padding: 0 20px 20px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 12px;
+      }
+      .sidebar-logo h1 {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sidebar-logo .badge {
+        font-size: 11px;
+        background: var(--modrinth);
+        color: #000;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-weight: 600;
+      }
+      .sidebar-logo p {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .nav-section {
+        padding: 0 12px;
+        margin-bottom: 8px;
+      }
+      .nav-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 8px 8px 4px;
+      }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 13.5px;
+        transition: all 0.15s;
+        cursor: pointer;
+      }
+      .nav-link:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .nav-link.active {
+        background: var(--accent) 22;
+        color: var(--accent);
+      }
+      .nav-link .phase-num {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--surface2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      /* ── Main ── */
+      .main {
+        padding: 40px 48px;
+        max-width: 1100px;
+      }
+
+      /* ── Search bar ── */
+      .search-wrap {
+        margin-bottom: 32px;
+      }
+      .search-input {
+        width: 100%;
+        max-width: 480px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        font-size: 14px;
+        padding: 10px 16px 10px 40px;
+        outline: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: 14px center;
+        transition: border-color 0.2s;
+      }
+      .search-input:focus {
+        border-color: var(--accent);
+      }
+      .search-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      /* ── Hero ── */
+      .hero {
+        background: linear-gradient(135deg, var(--surface) 0%, #0d2818 100%);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 40px;
+        margin-bottom: 40px;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 200px;
+        height: 200px;
+        background: var(--modrinth);
+        opacity: 0.05;
+        border-radius: 50%;
+      }
+      .hero h2 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .hero p {
+        color: var(--text-muted);
+        max-width: 560px;
+      }
+      .hero-meta {
+        display: flex;
+        gap: 24px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+      }
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .meta-item strong {
+        color: var(--text);
+      }
+
+      /* ── Section headings ── */
+      .section {
+        margin-bottom: 48px;
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+      }
+      .section-header h2 {
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .section-icon {
+        font-size: 22px;
+      }
+
+      /* ── Cards ── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .tech-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tech-card .name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .tech-card .role {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .tech-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        width: fit-content;
+      }
+      .badge-green {
+        background: #1bd96a22;
+        color: var(--modrinth);
+      }
+      .badge-orange {
+        background: #f57c0022;
+        color: var(--hangar);
+      }
+      .badge-blue {
+        background: #58a6ff22;
+        color: var(--accent);
+      }
+      .badge-gray {
+        background: var(--surface2);
+        color: var(--text-muted);
+      }
+
+      /* ── SVG Architecture ── */
+      .arch-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+      }
+      .arch-wrap svg {
+        display: block;
+        margin: 0 auto;
+      }
+
+      /* ── Commands table ── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--surface2);
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: var(--surface2);
+      }
+      .cmd-name {
+        font-family: var(--mono);
+        color: var(--modrinth);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .cmd-desc {
+        color: var(--text-muted);
+      }
+      .cmd-phase {
+        font-size: 12px;
+      }
+
+      /* ── Code blocks ── */
+      pre {
+        background: #010409;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+      .inline-code {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: #e6edf3;
+      }
+      .kw {
+        color: #ff7b72;
+      }
+      .str {
+        color: #a5d6ff;
+      }
+      .cmt {
+        color: #8b949e;
+        font-style: italic;
+      }
+      .fn {
+        color: #d2a8ff;
+      }
+      .val {
+        color: #79c0ff;
+      }
+      .type {
+        color: #ffa657;
+      }
+
+      /* ── Phase accordion ── */
+      .phase-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .phase-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+      .phase-item:hover {
+        border-color: var(--accent) 66;
+      }
+      .phase-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 20px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+      }
+      .phase-header:hover {
+        background: var(--surface2);
+      }
+      .phase-num-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .p0 {
+        background: #8b949e33;
+        color: #8b949e;
+      }
+      .p1 {
+        background: #58a6ff22;
+        color: #58a6ff;
+      }
+      .p2 {
+        background: #1bd96a22;
+        color: #1bd96a;
+      }
+      .p3 {
+        background: #f57c0022;
+        color: #f57c00;
+      }
+      .p4 {
+        background: #d2992222;
+        color: #d29922;
+      }
+      .p5 {
+        background: #bc8cff22;
+        color: #bc8cff;
+      }
+      .p6 {
+        background: #ff7b7222;
+        color: #ff7b72;
+      }
+      .p7 {
+        background: #39d35322;
+        color: #39d353;
+      }
+      .phase-title {
+        font-weight: 600;
+        flex: 1;
+      }
+      .phase-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .phase-toggle {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        font-size: 12px;
+        transition: transform 0.2s;
+      }
+      .phase-item.open .phase-toggle {
+        transform: rotate(180deg);
+      }
+      .phase-body {
+        display: none;
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--border);
+        animation: fadeIn 0.2s ease;
+      }
+      .phase-item.open .phase-body {
+        display: block;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── Task list ── */
+      .task-table {
+        width: 100%;
+        margin-top: 16px;
+      }
+      .task-row {
+        display: grid;
+        grid-template-columns: 28px 1fr 180px 100px;
+        gap: 8px;
+        align-items: start;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border) 66;
+        font-size: 13px;
+      }
+      .task-row:last-child {
+        border-bottom: none;
+      }
+      .task-check {
+        color: var(--text-muted);
+        font-size: 16px;
+      }
+      .task-name {
+        font-weight: 500;
+      }
+      .task-file {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+      .task-est {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      /* ── Flow diagram ── */
+      .flow-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        overflow-x: auto;
+      }
+
+      /* ── Tab component ── */
+      .tabs {
+        margin-bottom: 24px;
+      }
+      .tab-list {
+        display: flex;
+        gap: 2px;
+        background: var(--surface2);
+        border-radius: var(--radius);
+        padding: 3px;
+        width: fit-content;
+        margin-bottom: 16px;
+      }
+      .tab-btn {
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .tab-btn.active {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* ── File tree ── */
+      .file-tree {
+        background: #010409;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 2;
+      }
+      .tree-dir {
+        color: var(--accent);
+      }
+      .tree-file {
+        color: var(--text);
+      }
+      .tree-new {
+        color: var(--modrinth);
+      }
+      .tree-indent {
+        color: var(--border);
+      }
+
+      /* ── Progress bar ── */
+      .progress-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+        font-size: 13px;
+      }
+      .progress-label {
+        width: 80px;
+        flex-shrink: 0;
+        color: var(--text-muted);
+      }
+      .progress-bar {
+        flex: 1;
+        height: 6px;
+        background: var(--surface2);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.8s ease;
+      }
+      .progress-pct {
+        width: 36px;
+        text-align: right;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* ── Hidden by search ── */
+      .hidden {
+        display: none !important;
+      }
+
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          position: static;
+          height: auto;
+        }
+        .main {
+          padding: 24px 20px;
+        }
+        .task-row {
+          grid-template-columns: 28px 1fr;
+        }
+        .task-file,
+        .task-est {
+          grid-column: 2;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ══════════════ SIDEBAR ══════════════ -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">
+          <h1>🪣 hopper <span class="badge">CLI</span></h1>
+          <p>Minecraft Plugin Manager</p>
         </div>
-      </div>
 
-      <div class="tab-panel" id="tab-snippet">
-        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">主要なコードサンプル</p>
-        <pre><code><span class="cmt">// registries/types.ts</span>
+        <div class="nav-section">
+          <div class="nav-label">Overview</div>
+          <a class="nav-link active" onclick="scrollTo('overview')">📋 概要・スタック</a>
+          <a class="nav-link" onclick="scrollTo('commands')">⌨️ コマンド一覧</a>
+          <a class="nav-link" onclick="scrollTo('arch')">🏗️ アーキテクチャ</a>
+          <a class="nav-link" onclick="scrollTo('flow')">🔄 インストールフロー</a>
+          <a class="nav-link" onclick="scrollTo('files')">📁 ファイル構成</a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-label">Implementation Phases</div>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num p0"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #8b949e33;
+                color: #8b949e;
+              "
+              >0</span
+            >
+            Phase 0: 事前準備
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #58a6ff22;
+                color: #58a6ff;
+              "
+              >1</span
+            >
+            Phase 1: Monorepo + Registry
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #1bd96a22;
+                color: #1bd96a;
+              "
+              >2</span
+            >
+            Phase 2: search / info
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #f57c0022;
+                color: #f57c00;
+              "
+              >3</span
+            >
+            Phase 3: fs + install
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #d2992222;
+                color: #d29922;
+              "
+              >4</span
+            >
+            Phase 4: list / remove / update
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #bc8cff22;
+                color: #bc8cff;
+              "
+              >5</span
+            >
+            Phase 5: init / doctor
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #ff7b7222;
+                color: #ff7b72;
+              "
+              >6</span
+            >
+            Phase 6: テスト
+          </a>
+          <a class="nav-link" onclick="scrollTo('phases')">
+            <span
+              class="phase-num"
+              style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                background: #39d35322;
+                color: #39d353;
+              "
+              >7</span
+            >
+            Phase 7: npm publish
+          </a>
+        </div>
+
+        <div
+          class="nav-section"
+          style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border)"
+        >
+          <div style="padding: 8px; font-size: 12px; color: var(--text-muted)">
+            📅 Generated: 2026-05-19<br />
+            🔖 v0.1.0-plan
+          </div>
+        </div>
+      </aside>
+
+      <!-- ══════════════ MAIN ══════════════ -->
+      <main class="main">
+        <!-- Search -->
+        <div class="search-wrap">
+          <input
+            class="search-input"
+            type="text"
+            id="searchInput"
+            placeholder="フェーズ・タスク・ファイル名で絞り込み..."
+            oninput="filterPhases(this.value)"
+          />
+        </div>
+
+        <!-- ── Hero ── -->
+        <div class="hero" id="overview">
+          <h2>🪣 hopper — Minecraft Plugin Manager CLI</h2>
+          <p>
+            npm 風の操作感で Minecraft Java Edition プラグインを管理。Modrinth と Hangar
+            を同時クエリして最適な結果をマージする。
+          </p>
+          <div class="hero-meta">
+            <div class="meta-item">🛠️ <strong>Node.js + TypeScript</strong></div>
+            <div class="meta-item">📦 <strong>pnpm workspaces</strong></div>
+            <div class="meta-item">🧪 <strong>Vitest</strong></div>
+            <div class="meta-item">🚀 <strong>npm publish</strong></div>
+            <div class="meta-item">⚡ <strong>oxlint + oxfmt</strong></div>
+            <div class="meta-item">🔗 <strong>Lefthook (git hooks)</strong></div>
+          </div>
+        </div>
+
+        <!-- ── Tech Stack ── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">🧰</span>
+            <h2>技術スタック</h2>
+          </div>
+          <div class="card-grid">
+            <div class="tech-card">
+              <div class="name">Commander.js</div>
+              <div class="role">CLIフレームワーク</div>
+              <div class="tech-badge badge-blue">core</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">chalk</div>
+              <div class="role">ターミナル色付け</div>
+              <div class="tech-badge badge-blue">output</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">ora</div>
+              <div class="role">スピナー・進捗表示</div>
+              <div class="tech-badge badge-blue">output</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">Modrinth API</div>
+              <div class="role">プライマリデータソース</div>
+              <div class="tech-badge badge-green">registry</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">Hangar API</div>
+              <div class="role">セカンダリデータソース</div>
+              <div class="tech-badge badge-orange">registry</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">Vitest</div>
+              <div class="role">ユニット・統合テスト</div>
+              <div class="tech-badge badge-gray">test</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">oxlint</div>
+              <div class="role">高速 Linter (Rust製)</div>
+              <div class="tech-badge badge-gray">tooling</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">Lefthook</div>
+              <div class="role">Git フック管理</div>
+              <div class="tech-badge badge-gray">tooling</div>
+            </div>
+            <div class="tech-card">
+              <div class="name">just</div>
+              <div class="role">タスクランナー</div>
+              <div class="tech-badge badge-gray">tooling</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Commands ── -->
+        <div class="section" id="commands">
+          <div class="section-header">
+            <span class="section-icon">⌨️</span>
+            <h2>コマンド一覧</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>コマンド</th>
+                <th>説明</th>
+                <th>実装フェーズ</th>
+                <th>優先度</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="cmd-name">hopper search &lt;query&gt;</span></td>
+                <td class="cmd-desc">
+                  Modrinth + Hangar を同時クエリしてプラグインを検索、マージ結果を表示
+                </td>
+                <td class="cmd-phase"><span class="tech-badge badge-green">Phase 2</span></td>
+                <td><span class="tech-badge badge-blue">High</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper info &lt;name&gt;</span></td>
+                <td class="cmd-desc">プラグインの詳細情報（バージョン・依存・ライセンス）を表示</td>
+                <td class="cmd-phase"><span class="tech-badge badge-green">Phase 2</span></td>
+                <td><span class="tech-badge badge-blue">High</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper install [name[@ver]]</span></td>
+                <td class="cmd-desc">
+                  指定プラグインをダウンロード・インストール。引数なしは manifest から
+                </td>
+                <td class="cmd-phase"><span class="tech-badge badge-orange">Phase 3</span></td>
+                <td><span class="tech-badge badge-blue">High</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper list</span></td>
+                <td class="cmd-desc">インストール済みプラグイン一覧を表示</td>
+                <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
+                <td><span class="tech-badge badge-gray">Mid</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper remove &lt;name&gt;</span></td>
+                <td class="cmd-desc">プラグインを削除し manifest・lock を更新</td>
+                <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
+                <td><span class="tech-badge badge-gray">Mid</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper update [name]</span></td>
+                <td class="cmd-desc">プラグインを最新バージョンに更新。引数なしは全て更新</td>
+                <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 4</span></td>
+                <td><span class="tech-badge badge-gray">Mid</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper init</span></td>
+                <td class="cmd-desc">
+                  対話式で <code class="inline-code">hopper-plugin.json</code> を生成
+                </td>
+                <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 5</span></td>
+                <td><span class="tech-badge badge-gray">Low</span></td>
+              </tr>
+              <tr>
+                <td><span class="cmd-name">hopper doctor</span></td>
+                <td class="cmd-desc">
+                  Java バージョン・plugins/ ディレクトリ・ネットワーク接続を診断
+                </td>
+                <td class="cmd-phase"><span class="tech-badge badge-gray">Phase 5</span></td>
+                <td><span class="tech-badge badge-gray">Low</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ── Architecture SVG ── -->
+        <div class="section" id="arch">
+          <div class="section-header">
+            <span class="section-icon">🏗️</span>
+            <h2>アーキテクチャ図</h2>
+          </div>
+          <div class="arch-wrap">
+            <svg
+              width="860"
+              height="360"
+              viewBox="0 0 860 360"
+              xmlns="http://www.w3.org/2000/svg"
+              style="font-family: system-ui, sans-serif"
+            >
+              <defs>
+                <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff" opacity="0.7" />
+                </marker>
+                <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#1bd96a" opacity="0.7" />
+                </marker>
+                <marker id="arr-o" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="#f57c00" opacity="0.7" />
+                </marker>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <!-- Layer labels -->
+              <text
+                x="12"
+                y="60"
+                fill="#8b949e"
+                font-size="10"
+                font-weight="600"
+                letter-spacing="1"
+              >
+                USER
+              </text>
+              <text
+                x="12"
+                y="155"
+                fill="#8b949e"
+                font-size="10"
+                font-weight="600"
+                letter-spacing="1"
+              >
+                CLI
+              </text>
+              <text
+                x="12"
+                y="250"
+                fill="#8b949e"
+                font-size="10"
+                font-weight="600"
+                letter-spacing="1"
+              >
+                REGISTRY
+              </text>
+              <text
+                x="12"
+                y="340"
+                fill="#8b949e"
+                font-size="10"
+                font-weight="600"
+                letter-spacing="1"
+              >
+                FS
+              </text>
+
+              <!-- Layer bg -->
+              <rect
+                x="70"
+                y="30"
+                width="770"
+                height="52"
+                rx="6"
+                fill="#161b2200"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <rect
+                x="70"
+                y="120"
+                width="770"
+                height="66"
+                rx="6"
+                fill="#161b2200"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <rect
+                x="70"
+                y="220"
+                width="770"
+                height="66"
+                rx="6"
+                fill="#161b2200"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <rect
+                x="70"
+                y="314"
+                width="770"
+                height="36"
+                rx="6"
+                fill="#161b2200"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+
+              <!-- Terminal box -->
+              <rect
+                x="90"
+                y="38"
+                width="140"
+                height="36"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                filter="url(#glow)"
+              />
+              <text
+                x="160"
+                y="62"
+                fill="#58a6ff"
+                font-size="13"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                $ hopper ...
+              </text>
+
+              <!-- Commander.js -->
+              <rect
+                x="280"
+                y="128"
+                width="120"
+                height="50"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+              />
+              <text
+                x="340"
+                y="149"
+                fill="#e6edf3"
+                font-size="12"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                Commander.js
+              </text>
+              <text x="340" y="166" fill="#8b949e" font-size="10" text-anchor="middle">
+                Command Router
+              </text>
+
+              <!-- Commands -->
+              <rect
+                x="430"
+                y="128"
+                width="90"
+                height="50"
+                rx="6"
+                fill="#21262d"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <text
+                x="475"
+                y="149"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                commands/
+              </text>
+              <text x="475" y="165" fill="#8b949e" font-size="10" text-anchor="middle">
+                8 commands
+              </text>
+
+              <!-- Services -->
+              <rect
+                x="550"
+                y="128"
+                width="90"
+                height="50"
+                rx="6"
+                fill="#21262d"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <text
+                x="595"
+                y="149"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                services/
+              </text>
+              <text x="595" y="165" fill="#8b949e" font-size="10" text-anchor="middle">
+                install/update
+              </text>
+
+              <!-- Formatter -->
+              <rect
+                x="670"
+                y="128"
+                width="90"
+                height="50"
+                rx="6"
+                fill="#21262d"
+                stroke="#30363d"
+                stroke-width="1"
+              />
+              <text
+                x="715"
+                y="149"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                formatter/
+              </text>
+              <text x="715" y="165" fill="#8b949e" font-size="10" text-anchor="middle">
+                human / json
+              </text>
+
+              <!-- multi.ts -->
+              <rect
+                x="280"
+                y="228"
+                width="120"
+                height="50"
+                rx="6"
+                fill="#21262d"
+                stroke="#8b949e"
+                stroke-width="1.5"
+              />
+              <text
+                x="340"
+                y="249"
+                fill="#e6edf3"
+                font-size="12"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                multi.ts
+              </text>
+              <text x="340" y="266" fill="#8b949e" font-size="10" text-anchor="middle">
+                Result Merger
+              </text>
+
+              <!-- Modrinth -->
+              <rect
+                x="430"
+                y="228"
+                width="110"
+                height="50"
+                rx="6"
+                fill="#0d2818"
+                stroke="#1bd96a"
+                stroke-width="1.5"
+                filter="url(#glow)"
+              />
+              <text
+                x="485"
+                y="249"
+                fill="#1bd96a"
+                font-size="12"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                Modrinth
+              </text>
+              <text x="485" y="266" fill="#8b949e" font-size="10" text-anchor="middle">
+                Primary Source
+              </text>
+
+              <!-- Hangar -->
+              <rect
+                x="570"
+                y="228"
+                width="110"
+                height="50"
+                rx="6"
+                fill="#1a0d00"
+                stroke="#f57c00"
+                stroke-width="1.5"
+                filter="url(#glow)"
+              />
+              <text
+                x="625"
+                y="249"
+                fill="#f57c00"
+                font-size="12"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                Hangar
+              </text>
+              <text x="625" y="266" fill="#8b949e" font-size="10" text-anchor="middle">
+                Secondary Source
+              </text>
+
+              <!-- FS Layer -->
+              <rect x="90" y="320" width="100" height="24" rx="5" fill="#21262d" stroke="#30363d" />
+              <text x="140" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">
+                manifest.ts
+              </text>
+
+              <rect x="210" y="320" width="90" height="24" rx="5" fill="#21262d" stroke="#30363d" />
+              <text x="255" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">
+                lock.ts
+              </text>
+
+              <rect
+                x="320"
+                y="320"
+                width="110"
+                height="24"
+                rx="5"
+                fill="#21262d"
+                stroke="#30363d"
+              />
+              <text x="375" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">
+                installed.ts
+              </text>
+
+              <rect
+                x="450"
+                y="320"
+                width="110"
+                height="24"
+                rx="5"
+                fill="#21262d"
+                stroke="#30363d"
+              />
+              <text x="505" y="337" fill="#e6edf3" font-size="11" text-anchor="middle">
+                download.ts
+              </text>
+
+              <!-- Arrows: user → commander -->
+              <line
+                x1="230"
+                y1="56"
+                x2="278"
+                y2="153"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                stroke-dasharray="4,3"
+                marker-end="url(#arr)"
+                opacity="0.7"
+              />
+
+              <!-- commander → commands -->
+              <line
+                x1="400"
+                y1="153"
+                x2="428"
+                y2="153"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#arr)"
+                opacity="0.7"
+              />
+
+              <!-- commands → services -->
+              <line
+                x1="520"
+                y1="153"
+                x2="548"
+                y2="153"
+                stroke="#8b949e"
+                stroke-width="1.2"
+                marker-end="url(#arr)"
+                opacity="0.6"
+              />
+
+              <!-- commands → multi -->
+              <line
+                x1="475"
+                y1="178"
+                x2="400"
+                y2="228"
+                stroke="#8b949e"
+                stroke-width="1.2"
+                marker-end="url(#arr)"
+                opacity="0.6"
+              />
+
+              <!-- multi → modrinth -->
+              <line
+                x1="400"
+                y1="253"
+                x2="428"
+                y2="253"
+                stroke="#1bd96a"
+                stroke-width="1.5"
+                marker-end="url(#arr-g)"
+                opacity="0.7"
+              />
+
+              <!-- multi → hangar -->
+              <line
+                x1="400"
+                y1="260"
+                x2="428"
+                y2="268"
+                stroke="#f57c00"
+                stroke-width="1.5"
+                marker-end="url(#arr-o)"
+                opacity="0.7"
+              />
+
+              <!-- services → fs -->
+              <line
+                x1="595"
+                y1="178"
+                x2="375"
+                y2="320"
+                stroke="#8b949e"
+                stroke-width="1.2"
+                stroke-dasharray="3,3"
+                marker-end="url(#arr)"
+                opacity="0.5"
+              />
+
+              <!-- Promise.all label -->
+              <rect x="395" y="235" width="26" height="14" rx="3" fill="#0d1117" />
+              <text x="408" y="246" fill="#8b949e" font-size="9" text-anchor="middle">race</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ── Install Flow ── -->
+        <div class="section" id="flow">
+          <div class="section-header">
+            <span class="section-icon">🔄</span>
+            <h2>インストールフロー (hopper install)</h2>
+          </div>
+          <div class="flow-wrap">
+            <svg
+              width="820"
+              height="280"
+              viewBox="0 0 820 280"
+              xmlns="http://www.w3.org/2000/svg"
+              style="font-family: system-ui, sans-serif"
+            >
+              <defs>
+                <marker id="fa" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L7,3 z" fill="#58a6ff88" />
+                </marker>
+                <marker id="fa-g" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L7,3 z" fill="#1bd96a88" />
+                </marker>
+                <marker id="fa-r" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L7,3 z" fill="#f8514988" />
+                </marker>
+              </defs>
+
+              <!-- Step boxes -->
+              <!-- Step 1: parse arg -->
+              <rect
+                x="20"
+                y="110"
+                width="110"
+                height="44"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+              />
+              <text
+                x="75"
+                y="128"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                引数パース
+              </text>
+              <text x="75" y="143" fill="#8b949e" font-size="10" text-anchor="middle">
+                name@version
+              </text>
+
+              <!-- Step 2: manifest check -->
+              <rect
+                x="160"
+                y="110"
+                width="110"
+                height="44"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+              />
+              <text
+                x="215"
+                y="128"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                manifest 確認
+              </text>
+              <text x="215" y="143" fill="#8b949e" font-size="10" text-anchor="middle">
+                lock check
+              </text>
+
+              <!-- Diamond: cached? -->
+              <polygon
+                points="320,132 350,110 380,132 350,154"
+                fill="#21262d"
+                stroke="#d29922"
+                stroke-width="1.5"
+              />
+              <text
+                x="350"
+                y="128"
+                fill="#d29922"
+                font-size="10"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                cache
+              </text>
+              <text x="350" y="142" fill="#d29922" font-size="9" text-anchor="middle">hit?</text>
+
+              <!-- Cache hit path -->
+              <rect
+                x="320"
+                y="38"
+                width="60"
+                height="30"
+                rx="5"
+                fill="#0d2818"
+                stroke="#1bd96a"
+                stroke-width="1"
+              />
+              <text
+                x="350"
+                y="59"
+                fill="#1bd96a"
+                font-size="10"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                skip DL
+              </text>
+
+              <!-- Step 3: multi query -->
+              <rect
+                x="410"
+                y="110"
+                width="110"
+                height="44"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+              />
+              <text
+                x="465"
+                y="128"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                Multi Registry
+              </text>
+              <text x="465" y="143" fill="#8b949e" font-size="10" text-anchor="middle">
+                Promise.allSettled
+              </text>
+
+              <!-- Modrinth + Hangar parallel -->
+              <rect
+                x="400"
+                y="200"
+                width="80"
+                height="32"
+                rx="5"
+                fill="#0d2818"
+                stroke="#1bd96a"
+                stroke-width="1"
+              />
+              <text
+                x="440"
+                y="221"
+                fill="#1bd96a"
+                font-size="10"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                Modrinth
+              </text>
+              <rect
+                x="500"
+                y="200"
+                width="80"
+                height="32"
+                rx="5"
+                fill="#1a0d00"
+                stroke="#f57c00"
+                stroke-width="1"
+              />
+              <text
+                x="540"
+                y="221"
+                fill="#f57c00"
+                font-size="10"
+                font-weight="700"
+                text-anchor="middle"
+              >
+                Hangar
+              </text>
+
+              <!-- Step 4: download -->
+              <rect
+                x="560"
+                y="110"
+                width="100"
+                height="44"
+                rx="6"
+                fill="#21262d"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+              />
+              <text
+                x="610"
+                y="128"
+                fill="#e6edf3"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                JAR DL
+              </text>
+              <text x="610" y="143" fill="#8b949e" font-size="10" text-anchor="middle">
+                stream + sha256
+              </text>
+
+              <!-- Step 5: write -->
+              <rect
+                x="690"
+                y="110"
+                width="110"
+                height="44"
+                rx="6"
+                fill="#21262d"
+                stroke="#1bd96a"
+                stroke-width="1.5"
+              />
+              <text
+                x="745"
+                y="128"
+                fill="#1bd96a"
+                font-size="11"
+                font-weight="600"
+                text-anchor="middle"
+              >
+                FS 書き込み
+              </text>
+              <text x="745" y="143" fill="#8b949e" font-size="10" text-anchor="middle">
+                lock + installed
+              </text>
+
+              <!-- Arrows -->
+              <line
+                x1="130"
+                y1="132"
+                x2="158"
+                y2="132"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#fa)"
+              />
+              <line
+                x1="270"
+                y1="132"
+                x2="318"
+                y2="132"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#fa)"
+              />
+              <!-- cache miss -->
+              <line
+                x1="380"
+                y1="132"
+                x2="408"
+                y2="132"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#fa)"
+              />
+              <text x="394" y="126" fill="#8b949e" font-size="9" text-anchor="middle">miss</text>
+              <!-- cache hit up -->
+              <line
+                x1="350"
+                y1="110"
+                x2="350"
+                y2="70"
+                stroke="#1bd96a"
+                stroke-width="1.2"
+                marker-end="url(#fa-g)"
+              />
+              <text x="358" y="94" fill="#1bd96a" font-size="9">hit</text>
+              <!-- multi → parallel -->
+              <line
+                x1="440"
+                y1="154"
+                x2="440"
+                y2="198"
+                stroke="#1bd96a"
+                stroke-width="1.2"
+                stroke-dasharray="3,2"
+                marker-end="url(#fa-g)"
+              />
+              <line
+                x1="490"
+                y1="154"
+                x2="540"
+                y2="198"
+                stroke="#f57c00"
+                stroke-width="1.2"
+                stroke-dasharray="3,2"
+                marker-end="url(#fa)"
+              />
+              <!-- multi → download -->
+              <line
+                x1="520"
+                y1="132"
+                x2="558"
+                y2="132"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#fa)"
+              />
+              <!-- download → write -->
+              <line
+                x1="660"
+                y1="132"
+                x2="688"
+                y2="132"
+                stroke="#58a6ff"
+                stroke-width="1.5"
+                marker-end="url(#fa)"
+              />
+
+              <!-- ora spinner label -->
+              <rect x="562" y="86" width="96" height="18" rx="4" fill="#21262d" stroke="#30363d" />
+              <text x="610" y="99" fill="#d29922" font-size="9" text-anchor="middle">
+                ⠋ ora spinner
+              </text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ── File Tree ── -->
+        <div class="section" id="files">
+          <div class="section-header">
+            <span class="section-icon">📁</span>
+            <h2>ファイル構成</h2>
+          </div>
+          <div class="tabs">
+            <div class="tab-list">
+              <button class="tab-btn active" onclick="switchTab('tree', this)">ツリー</button>
+              <button class="tab-btn" onclick="switchTab('snippet', this)">コードサンプル</button>
+              <button class="tab-btn" onclick="switchTab('api', this)">API 型定義</button>
+            </div>
+
+            <div class="tab-panel active" id="tab-tree">
+              <div class="file-tree">
+                <span class="tree-dir">hopper/</span>
+                ├── <span class="tree-dir">packages/</span> │ └──
+                <span class="tree-dir">cli/</span> │ ├──
+                <span class="tree-file">package.json</span> │ ├──
+                <span class="tree-file">tsconfig.json</span> │ ├──
+                <span class="tree-dir">src/</span> │ │ ├── <span class="tree-new">index.ts</span>
+                <span class="cmt"># エントリポイント</span> │ │ ├──
+                <span class="tree-dir">commands/</span> │ │ │ ├──
+                <span class="tree-new">search.ts</span> │ │ │ ├──
+                <span class="tree-new">info.ts</span> │ │ │ ├──
+                <span class="tree-new">install.ts</span> │ │ │ ├──
+                <span class="tree-new">list.ts</span> │ │ │ ├──
+                <span class="tree-new">remove.ts</span> │ │ │ ├──
+                <span class="tree-new">update.ts</span> │ │ │ ├──
+                <span class="tree-new">init.ts</span> │ │ │ └──
+                <span class="tree-new">doctor.ts</span> │ │ ├──
+                <span class="tree-dir">registries/</span> │ │ │ ├──
+                <span class="tree-new">types.ts</span> <span class="cmt"># 共通型定義</span> │ │ │
+                ├── <span class="tree-new">modrinth.ts</span>
+                <span class="cmt"># Modrinth API クライアント</span> │ │ │ ├──
+                <span class="tree-new">hangar.ts</span>
+                <span class="cmt"># Hangar API クライアント</span> │ │ │ └──
+                <span class="tree-new">multi.ts</span>
+                <span class="cmt"># マルチ検索・マージ</span> │ │ ├──
+                <span class="tree-dir">services/</span> │ │ │ ├──
+                <span class="tree-new">install.ts</span> │ │ │ ├──
+                <span class="tree-new">remove.ts</span> │ │ │ ├──
+                <span class="tree-new">update.ts</span> │ │ │ └──
+                <span class="tree-new">download.ts</span> │ │ ├──
+                <span class="tree-dir">fs/</span> │ │ │ ├──
+                <span class="tree-new">manifest.ts</span>
+                <span class="cmt"># hopper-plugin.json 操作</span> │ │ │ ├──
+                <span class="tree-new">lock.ts</span>
+                <span class="cmt"># hopper-lock.json 操作</span> │ │ │ └──
+                <span class="tree-new">installed.ts</span>
+                <span class="cmt"># installed.json 操作</span> │ │ └──
+                <span class="tree-dir">formatter/</span> │ │ ├──
+                <span class="tree-new">human.ts</span> │ │ └──
+                <span class="tree-new">json-output.ts</span> │ └──
+                <span class="tree-dir">tests/</span> │ ├──
+                <span class="tree-new">modrinth.test.ts</span> │ ├──
+                <span class="tree-new">hangar.test.ts</span> │ ├──
+                <span class="tree-new">multi.test.ts</span> │ ├──
+                <span class="tree-new">install.test.ts</span> │ └──
+                <span class="tree-new">manifest.test.ts</span> ├──
+                <span class="tree-file">pnpm-workspace.yaml</span> ├──
+                <span class="tree-file">package.json</span>
+                <span class="cmt"># root workspace</span> ├──
+                <span class="tree-file">justfile</span> ├──
+                <span class="tree-file">lefthook.yml</span> └──
+                <span class="tree-dir">docs/</span> └── <span class="tree-file">plan.html</span>
+                <span class="cmt"># ← このファイル</span>
+              </div>
+            </div>
+
+            <div class="tab-panel" id="tab-snippet">
+              <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px">
+                主要なコードサンプル
+              </p>
+              <pre><code><span class="cmt">// registries/types.ts</span>
 <span class="kw">export interface</span> <span class="type">PluginResult</span> {
   id:          <span class="type">string</span>;
   name:        <span class="type">string</span>;
@@ -856,7 +1887,9 @@
 }
 </code></pre>
 
-        <pre style="margin-top:16px"><code><span class="cmt">// registries/multi.ts — 同時クエリ + マージ</span>
+              <pre
+                style="margin-top: 16px"
+              ><code><span class="cmt">// registries/multi.ts — 同時クエリ + マージ</span>
 <span class="kw">export async function</span> <span class="fn">multiSearch</span>(
   query: <span class="type">string</span>,
   opts:  <span class="type">SearchOptions</span> = {}
@@ -874,7 +1907,7 @@
 }
 </code></pre>
 
-        <pre style="margin-top:16px"><code><span class="cmt">// commands/search.ts</span>
+              <pre style="margin-top: 16px"><code><span class="cmt">// commands/search.ts</span>
 <span class="kw">import</span> { Command } <span class="kw">from</span> <span class="str">'commander'</span>;
 <span class="kw">import</span> ora <span class="kw">from</span> <span class="str">'ora'</span>;
 <span class="kw">import</span> { multiSearch } <span class="kw">from</span> <span class="str">'../registries/multi.js'</span>;
@@ -898,11 +1931,13 @@
     }
   });
 </code></pre>
-      </div>
+            </div>
 
-      <div class="tab-panel" id="tab-api">
-        <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Manifest / Lock スキーマ</p>
-        <pre><code><span class="cmt">// hopper-plugin.json (manifest)</span>
+            <div class="tab-panel" id="tab-api">
+              <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px">
+                Manifest / Lock スキーマ
+              </p>
+              <pre><code><span class="cmt">// hopper-plugin.json (manifest)</span>
 {
   <span class="str">"name"</span>:        <span class="str">"my-server"</span>,
   <span class="str">"mcVersion"</span>:   <span class="str">"1.21.4"</span>,
@@ -914,7 +1949,9 @@
   }
 }
 </code></pre>
-        <pre style="margin-top:16px"><code><span class="cmt">// hopper-lock.json (lockfile)</span>
+              <pre
+                style="margin-top: 16px"
+              ><code><span class="cmt">// hopper-lock.json (lockfile)</span>
 {
   <span class="str">"lockfileVersion"</span>: 1,
   <span class="str">"plugins"</span>: {
@@ -930,84 +1967,155 @@
   }
 }
 </code></pre>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Phases ── -->
-  <div class="section" id="phases">
-    <div class="section-header">
-      <span class="section-icon">📋</span>
-      <h2>実装フェーズ詳細</h2>
-    </div>
-
-    <!-- Phase progress overview -->
-    <div class="card" style="margin-bottom:24px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text-muted)">PHASE OVERVIEW</div>
-      <div class="progress-row"><span class="progress-label">Phase 0</span><div class="progress-bar"><div class="progress-fill" style="width:100%;background:#8b949e"></div></div><span class="progress-pct">準備</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 1</span><div class="progress-bar"><div class="progress-fill" style="width:85%;background:#58a6ff"></div></div><span class="progress-pct">基盤</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 2</span><div class="progress-bar"><div class="progress-fill" style="width:70%;background:#1bd96a"></div></div><span class="progress-pct">検索</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 3</span><div class="progress-bar"><div class="progress-fill" style="width:55%;background:#f57c00"></div></div><span class="progress-pct">DL・FS</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 4</span><div class="progress-bar"><div class="progress-fill" style="width:40%;background:#d29922"></div></div><span class="progress-pct">管理</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 5</span><div class="progress-bar"><div class="progress-fill" style="width:25%;background:#bc8cff"></div></div><span class="progress-pct">UX</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 6</span><div class="progress-bar"><div class="progress-fill" style="width:15%;background:#ff7b72"></div></div><span class="progress-pct">Test</span></div>
-      <div class="progress-row"><span class="progress-label">Phase 7</span><div class="progress-bar"><div class="progress-fill" style="width:5%;background:#39d353"></div></div><span class="progress-pct">Pub</span></div>
-    </div>
-
-    <div class="phase-list" id="phaseList">
-
-      <!-- ═══ Phase 0 ═══ -->
-      <div class="phase-item" data-phase="0" data-keywords="事前準備 docs justfile lefthook oxlint pnpm workspace">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p0">0</span>
-          <div>
-            <div class="phase-title">Phase 0 — 事前準備</div>
-            <div class="phase-subtitle">docs整理・ツールチェーン構築</div>
+            </div>
           </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
         </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
+
+        <!-- ── Phases ── -->
+        <div class="section" id="phases">
+          <div class="section-header">
+            <span class="section-icon">📋</span>
+            <h2>実装フェーズ詳細</h2>
           </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">pnpm workspaces 設定</div>
-            <div class="task-file">pnpm-workspace.yaml<br>package.json</div>
-            <div class="task-est">30 min</div>
+
+          <!-- Phase progress overview -->
+          <div class="card" style="margin-bottom: 24px">
+            <div
+              style="
+                font-size: 13px;
+                font-weight: 600;
+                margin-bottom: 14px;
+                color: var(--text-muted);
+              "
+            >
+              PHASE OVERVIEW
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 0</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 100%; background: #8b949e"></div>
+              </div>
+              <span class="progress-pct">準備</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 1</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 85%; background: #58a6ff"></div>
+              </div>
+              <span class="progress-pct">基盤</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 2</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 70%; background: #1bd96a"></div>
+              </div>
+              <span class="progress-pct">検索</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 3</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 55%; background: #f57c00"></div>
+              </div>
+              <span class="progress-pct">DL・FS</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 4</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 40%; background: #d29922"></div>
+              </div>
+              <span class="progress-pct">管理</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 5</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 25%; background: #bc8cff"></div>
+              </div>
+              <span class="progress-pct">UX</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 6</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 15%; background: #ff7b72"></div>
+              </div>
+              <span class="progress-pct">Test</span>
+            </div>
+            <div class="progress-row">
+              <span class="progress-label">Phase 7</span>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: 5%; background: #39d353"></div>
+              </div>
+              <span class="progress-pct">Pub</span>
+            </div>
           </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">TypeScript + tsconfig 設定</div>
-            <div class="task-file">packages/cli/tsconfig.json</div>
-            <div class="task-est">20 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">oxlint + oxfmt 設定</div>
-            <div class="task-file">.oxlintrc.json<br>oxfmt.toml</div>
-            <div class="task-est">20 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Lefthook git hooks 設定</div>
-            <div class="task-file">lefthook.yml</div>
-            <div class="task-est">15 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">justfile タスク定義</div>
-            <div class="task-file">justfile</div>
-            <div class="task-est">20 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Vitest 設定</div>
-            <div class="task-file">vitest.config.ts</div>
-            <div class="task-est">15 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt"># justfile</span>
+
+          <div class="phase-list" id="phaseList">
+            <!-- ═══ Phase 0 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="0"
+              data-keywords="事前準備 docs justfile lefthook oxlint pnpm workspace"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p0">0</span>
+                <div>
+                  <div class="phase-title">Phase 0 — 事前準備</div>
+                  <div class="phase-subtitle">docs整理・ツールチェーン構築</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">pnpm workspaces 設定</div>
+                  <div class="task-file">pnpm-workspace.yaml<br />package.json</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">TypeScript + tsconfig 設定</div>
+                  <div class="task-file">packages/cli/tsconfig.json</div>
+                  <div class="task-est">20 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">oxlint + oxfmt 設定</div>
+                  <div class="task-file">.oxlintrc.json<br />oxfmt.toml</div>
+                  <div class="task-est">20 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Lefthook git hooks 設定</div>
+                  <div class="task-file">lefthook.yml</div>
+                  <div class="task-est">15 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">justfile タスク定義</div>
+                  <div class="task-file">justfile</div>
+                  <div class="task-est">20 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Vitest 設定</div>
+                  <div class="task-file">vitest.config.ts</div>
+                  <div class="task-est">15 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt"># justfile</span>
 <span class="fn">build</span>:
   pnpm -C packages/cli <span class="str">build</span>
 
@@ -1022,114 +2130,160 @@
 
 <span class="fn">dev</span>:
   pnpm -C packages/cli <span class="fn">tsx</span> src/index.ts</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 1 ═══ -->
-      <div class="phase-item" data-phase="1" data-keywords="monorepo registry modrinth hangar types multi マルチ 型定義 エントリポイント">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p1">1</span>
-          <div>
-            <div class="phase-title">Phase 1 — Monorepo + Registry クライアント</div>
-            <div class="phase-subtitle">型定義・Modrinth・Hangar・Multi・エントリポイント</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">共通型定義 (PluginResult, SearchOptions, VersionInfo)</div>
-            <div class="task-file">registries/types.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Modrinth API クライアント (search, getProject, getVersion)</div>
-            <div class="task-file">registries/modrinth.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Hangar API クライアント (search, getProject, getDownload)</div>
-            <div class="task-file">registries/hangar.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Multi レジストリ (Promise.allSettled + dedupe + sort)</div>
-            <div class="task-file">registries/multi.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">エントリポイント + Commander.js ルーティング</div>
-            <div class="task-file">src/index.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div style="margin-top:16px">
-            <table>
-              <thead><tr><th>API</th><th>Endpoint</th><th>認証</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td><span class="tech-badge badge-green">Modrinth</span></td>
-                  <td><span class="cmd-name">https://api.modrinth.com/v2/search</span></td>
-                  <td>不要 (rate limit あり)</td>
-                </tr>
-                <tr>
-                  <td><span class="tech-badge badge-orange">Hangar</span></td>
-                  <td><span class="cmd-name">https://hangar.papermc.io/api/v1/projects</span></td>
-                  <td>不要 (rate limit あり)</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+            <!-- ═══ Phase 1 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="1"
+              data-keywords="monorepo registry modrinth hangar types multi マルチ 型定義 エントリポイント"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p1">1</span>
+                <div>
+                  <div class="phase-title">Phase 1 — Monorepo + Registry クライアント</div>
+                  <div class="phase-subtitle">
+                    型定義・Modrinth・Hangar・Multi・エントリポイント
+                  </div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">共通型定義 (PluginResult, SearchOptions, VersionInfo)</div>
+                  <div class="task-file">registries/types.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    Modrinth API クライアント (search, getProject, getVersion)
+                  </div>
+                  <div class="task-file">registries/modrinth.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    Hangar API クライアント (search, getProject, getDownload)
+                  </div>
+                  <div class="task-file">registries/hangar.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Multi レジストリ (Promise.allSettled + dedupe + sort)</div>
+                  <div class="task-file">registries/multi.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">エントリポイント + Commander.js ルーティング</div>
+                  <div class="task-file">src/index.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div style="margin-top: 16px">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>API</th>
+                        <th>Endpoint</th>
+                        <th>認証</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span class="tech-badge badge-green">Modrinth</span></td>
+                        <td><span class="cmd-name">https://api.modrinth.com/v2/search</span></td>
+                        <td>不要 (rate limit あり)</td>
+                      </tr>
+                      <tr>
+                        <td><span class="tech-badge badge-orange">Hangar</span></td>
+                        <td>
+                          <span class="cmd-name">https://hangar.papermc.io/api/v1/projects</span>
+                        </td>
+                        <td>不要 (rate limit あり)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 2 ═══ -->
-      <div class="phase-item" data-phase="2" data-keywords="search info コマンド formatter human json">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p2">2</span>
-          <div>
-            <div class="phase-title">Phase 2 — search / info コマンド</div>
-            <div class="phase-subtitle">検索・詳細表示・フォーマッター実装</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">search コマンド (--limit, --json, --game-version)</div>
-            <div class="task-file">commands/search.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">info コマンド (バージョン一覧・依存・ライセンス・ダウンロード数)</div>
-            <div class="task-file">commands/info.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">human フォーマッター (chalk テーブル・バッジ)</div>
-            <div class="task-file">formatter/human.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">JSON 出力フォーマッター</div>
-            <div class="task-file">formatter/json-output.ts</div>
-            <div class="task-est">20 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt"># 使用例</span>
+            <!-- ═══ Phase 2 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="2"
+              data-keywords="search info コマンド formatter human json"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p2">2</span>
+                <div>
+                  <div class="phase-title">Phase 2 — search / info コマンド</div>
+                  <div class="phase-subtitle">検索・詳細表示・フォーマッター実装</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">search コマンド (--limit, --json, --game-version)</div>
+                  <div class="task-file">commands/search.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    info コマンド (バージョン一覧・依存・ライセンス・ダウンロード数)
+                  </div>
+                  <div class="task-file">commands/info.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">human フォーマッター (chalk テーブル・バッジ)</div>
+                  <div class="task-file">formatter/human.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">JSON 出力フォーマッター</div>
+                  <div class="task-file">formatter/json-output.ts</div>
+                  <div class="task-est">20 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt"># 使用例</span>
 $ hopper search luckperms
 ⠋ Searching for "luckperms"…
 ✔ Found 3 plugins
@@ -1144,61 +2298,78 @@ Author: lucko
 License: MIT
 Downloads: 23,841,221
 Versions: 1.21.4, 1.21.3, 1.20.6 ...</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 3 ═══ -->
-      <div class="phase-item" data-phase="3" data-keywords="install manifest lock installed download jar sha256 fs">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p3">3</span>
-          <div>
-            <div class="phase-title">Phase 3 — fs層 + install コマンド</div>
-            <div class="phase-subtitle">manifest・lock・installed.json・JAR ダウンロード</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">manifest.ts (read/write/validate hopper-plugin.json)</div>
-            <div class="task-file">fs/manifest.ts</div>
-            <div class="task-est">40 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">lock.ts (read/write/update hopper-lock.json)</div>
-            <div class="task-file">fs/lock.ts</div>
-            <div class="task-est">40 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">installed.ts (追跡・一覧取得)</div>
-            <div class="task-file">fs/installed.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">download.ts (stream DL + sha256 検証)</div>
-            <div class="task-file">services/download.ts</div>
-            <div class="task-est">50 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">install service (version resolve + DL + lock 書き込み)</div>
-            <div class="task-file">services/install.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">install コマンド (単体・manifest 一括)</div>
-            <div class="task-file">commands/install.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt"># 使用例</span>
+            <!-- ═══ Phase 3 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="3"
+              data-keywords="install manifest lock installed download jar sha256 fs"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p3">3</span>
+                <div>
+                  <div class="phase-title">Phase 3 — fs層 + install コマンド</div>
+                  <div class="phase-subtitle">manifest・lock・installed.json・JAR ダウンロード</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">manifest.ts (read/write/validate hopper-plugin.json)</div>
+                  <div class="task-file">fs/manifest.ts</div>
+                  <div class="task-est">40 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">lock.ts (read/write/update hopper-lock.json)</div>
+                  <div class="task-file">fs/lock.ts</div>
+                  <div class="task-est">40 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">installed.ts (追跡・一覧取得)</div>
+                  <div class="task-file">fs/installed.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">download.ts (stream DL + sha256 検証)</div>
+                  <div class="task-file">services/download.ts</div>
+                  <div class="task-est">50 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    install service (version resolve + DL + lock 書き込み)
+                  </div>
+                  <div class="task-file">services/install.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">install コマンド (単体・manifest 一括)</div>
+                  <div class="task-file">commands/install.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt"># 使用例</span>
 $ hopper install luckperms@5.4.145
 ⠋ Resolving luckperms@5.4.145…
 ⠹ Downloading LuckPerms-5.4.145.jar (3.2 MB)…
@@ -1210,43 +2381,58 @@ $ hopper install   <span class="cmt"># manifest から一括インストール</
   ✓ LuckPerms@5.4.145
   ✓ EssentialsX@2.21.0
   ✓ Vault@1.7.3</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 4 ═══ -->
-      <div class="phase-item" data-phase="4" data-keywords="list remove update 削除 一覧 更新">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p4">4</span>
-          <div>
-            <div class="phase-title">Phase 4 — list / remove / update</div>
-            <div class="phase-subtitle">インストール済み管理・削除・更新</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">list コマンド (テーブル表示・--outdated フラグ)</div>
-            <div class="task-file">commands/list.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">remove service (JAR削除 + lock/installed 更新)</div>
-            <div class="task-file">services/remove.ts<br>commands/remove.ts</div>
-            <div class="task-est">40 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">update service (最新バージョン確認 + 差分 DL)</div>
-            <div class="task-file">services/update.ts<br>commands/update.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt"># 使用例</span>
+            <!-- ═══ Phase 4 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="4"
+              data-keywords="list remove update 削除 一覧 更新"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p4">4</span>
+                <div>
+                  <div class="phase-title">Phase 4 — list / remove / update</div>
+                  <div class="phase-subtitle">インストール済み管理・削除・更新</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">list コマンド (テーブル表示・--outdated フラグ)</div>
+                  <div class="task-file">commands/list.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">remove service (JAR削除 + lock/installed 更新)</div>
+                  <div class="task-file">services/remove.ts<br />commands/remove.ts</div>
+                  <div class="task-est">40 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">update service (最新バージョン確認 + 差分 DL)</div>
+                  <div class="task-file">services/update.ts<br />commands/update.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt"># 使用例</span>
 $ hopper list
 <span class="val">NAME</span>          <span class="val">VERSION</span>    <span class="val">SOURCE</span>    <span class="val">STATUS</span>
 LuckPerms     5.4.145    modrinth  ✓ up-to-date
@@ -1261,37 +2447,56 @@ $ hopper update
 ⠋ Checking for updates…
 ↑ EssentialsX 2.21.0 → 2.22.0
 ✔ Updated 1 plugin</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 5 ═══ -->
-      <div class="phase-item" data-phase="5" data-keywords="init doctor 診断 環境 interactive 対話">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p5">5</span>
-          <div>
-            <div class="phase-title">Phase 5 — init / doctor</div>
-            <div class="phase-subtitle">プロジェクト初期化・環境診断</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">init コマンド (対話式プロンプト → hopper-plugin.json 生成)</div>
-            <div class="task-file">commands/init.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">doctor コマンド (Java版確認・pluginsDir・ネットワーク疎通)</div>
-            <div class="task-file">commands/doctor.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt"># hopper doctor 出力例</span>
+            <!-- ═══ Phase 5 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="5"
+              data-keywords="init doctor 診断 環境 interactive 対話"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p5">5</span>
+                <div>
+                  <div class="phase-title">Phase 5 — init / doctor</div>
+                  <div class="phase-subtitle">プロジェクト初期化・環境診断</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    init コマンド (対話式プロンプト → hopper-plugin.json 生成)
+                  </div>
+                  <div class="task-file">commands/init.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">
+                    doctor コマンド (Java版確認・pluginsDir・ネットワーク疎通)
+                  </div>
+                  <div class="task-file">commands/doctor.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt"># hopper doctor 出力例</span>
 $ hopper doctor
 ✔ Node.js v22.11.0
 ✔ Java 21.0.5 (java.home: /usr/lib/jvm/java-21)
@@ -1302,55 +2507,70 @@ $ hopper doctor
 ✔ hopper-lock.json found
 ━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ All checks passed (6/6)</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 6 ═══ -->
-      <div class="phase-item" data-phase="6" data-keywords="test vitest unit integration mock テスト">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p6">6</span>
-          <div>
-            <div class="phase-title">Phase 6 — テスト</div>
-            <div class="phase-subtitle">Vitest ユニット・統合テスト</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Modrinth クライアント テスト (MSW mock)</div>
-            <div class="task-file">tests/modrinth.test.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Hangar クライアント テスト (MSW mock)</div>
-            <div class="task-file">tests/hangar.test.ts</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Multi search + dedup テスト</div>
-            <div class="task-file">tests/multi.test.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">manifest / lock 読み書きテスト</div>
-            <div class="task-file">tests/manifest.test.ts</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">install service 統合テスト (tmpdir)</div>
-            <div class="task-file">tests/install.test.ts</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt">// tests/multi.test.ts</span>
+            <!-- ═══ Phase 6 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="6"
+              data-keywords="test vitest unit integration mock テスト"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p6">6</span>
+                <div>
+                  <div class="phase-title">Phase 6 — テスト</div>
+                  <div class="phase-subtitle">Vitest ユニット・統合テスト</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Modrinth クライアント テスト (MSW mock)</div>
+                  <div class="task-file">tests/modrinth.test.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Hangar クライアント テスト (MSW mock)</div>
+                  <div class="task-file">tests/hangar.test.ts</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Multi search + dedup テスト</div>
+                  <div class="task-file">tests/multi.test.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">manifest / lock 読み書きテスト</div>
+                  <div class="task-file">tests/manifest.test.ts</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">install service 統合テスト (tmpdir)</div>
+                  <div class="task-file">tests/install.test.ts</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <pre style="margin-top: 16px"><code><span class="cmt">// tests/multi.test.ts</span>
 <span class="kw">import</span> { describe, it, expect, vi } <span class="kw">from</span> <span class="str">'vitest'</span>;
 <span class="kw">import</span> { multiSearch } <span class="kw">from</span> <span class="str">'../src/registries/multi.js'</span>;
 
@@ -1368,55 +2588,72 @@ $ hopper doctor
     }
   });
 });</code></pre>
-        </div>
-      </div>
+              </div>
+            </div>
 
-      <!-- ═══ Phase 7 ═══ -->
-      <div class="phase-item" data-phase="7" data-keywords="npm publish release changeset README bin">
-        <div class="phase-header" onclick="togglePhase(this)">
-          <span class="phase-num-badge p7">7</span>
-          <div>
-            <div class="phase-title">Phase 7 — npm publish 準備</div>
-            <div class="phase-subtitle">README・bin 設定・Changeset・公開</div>
-          </div>
-          <div style="flex:1"></div>
-          <span class="phase-toggle">▼</span>
-        </div>
-        <div class="phase-body">
-          <div class="task-row" style="font-size:11px;font-weight:600;color:var(--text-muted);padding-bottom:4px">
-            <div></div><div>タスク</div><div>対象ファイル</div><div>工数目安</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">package.json bin フィールド・exports 設定</div>
-            <div class="task-file">packages/cli/package.json</div>
-            <div class="task-est">20 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">README.md (インストール・使い方・コマンド一覧)</div>
-            <div class="task-file">README.md</div>
-            <div class="task-est">60 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">Changeset 設定 + CHANGELOG 生成</div>
-            <div class="task-file">.changeset/</div>
-            <div class="task-est">30 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">GitHub Actions (CI + npm publish workflow)</div>
-            <div class="task-file">.github/workflows/</div>
-            <div class="task-est">45 min</div>
-          </div>
-          <div class="task-row">
-            <div class="task-check">☐</div>
-            <div class="task-name">npm publish (public スコープ)</div>
-            <div class="task-file">—</div>
-            <div class="task-est">15 min</div>
-          </div>
-          <pre style="margin-top:16px"><code><span class="cmt">// packages/cli/package.json (抜粋)</span>
+            <!-- ═══ Phase 7 ═══ -->
+            <div
+              class="phase-item"
+              data-phase="7"
+              data-keywords="npm publish release changeset README bin"
+            >
+              <div class="phase-header" onclick="togglePhase(this)">
+                <span class="phase-num-badge p7">7</span>
+                <div>
+                  <div class="phase-title">Phase 7 — npm publish 準備</div>
+                  <div class="phase-subtitle">README・bin 設定・Changeset・公開</div>
+                </div>
+                <div style="flex: 1"></div>
+                <span class="phase-toggle">▼</span>
+              </div>
+              <div class="phase-body">
+                <div
+                  class="task-row"
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    padding-bottom: 4px;
+                  "
+                >
+                  <div></div>
+                  <div>タスク</div>
+                  <div>対象ファイル</div>
+                  <div>工数目安</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">package.json bin フィールド・exports 設定</div>
+                  <div class="task-file">packages/cli/package.json</div>
+                  <div class="task-est">20 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">README.md (インストール・使い方・コマンド一覧)</div>
+                  <div class="task-file">README.md</div>
+                  <div class="task-est">60 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">Changeset 設定 + CHANGELOG 生成</div>
+                  <div class="task-file">.changeset/</div>
+                  <div class="task-est">30 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">GitHub Actions (CI + npm publish workflow)</div>
+                  <div class="task-file">.github/workflows/</div>
+                  <div class="task-est">45 min</div>
+                </div>
+                <div class="task-row">
+                  <div class="task-check">☐</div>
+                  <div class="task-name">npm publish (public スコープ)</div>
+                  <div class="task-file">—</div>
+                  <div class="task-est">15 min</div>
+                </div>
+                <pre
+                  style="margin-top: 16px"
+                ><code><span class="cmt">// packages/cli/package.json (抜粋)</span>
 {
   <span class="str">"name"</span>:    <span class="str">"@hopper-mc/cli"</span>,
   <span class="str">"version"</span>: <span class="str">"0.1.0"</span>,
@@ -1430,82 +2667,90 @@ $ hopper doctor
 $ npm install -g @hopper-mc/cli
 $ hopper --version
 hopper v0.1.0</code></pre>
+              </div>
+            </div>
+          </div>
+          <!-- /phase-list -->
         </div>
-      </div>
+        <!-- /section phases -->
+      </main>
+    </div>
+    <!-- /app -->
 
-    </div><!-- /phase-list -->
-  </div><!-- /section phases -->
-
-</main>
-</div><!-- /app -->
-
-<script>
-  // ── Accordion ──
-  function togglePhase(header) {
-    const item = header.closest('.phase-item');
-    item.classList.toggle('open');
-  }
-
-  // ── Tabs ──
-  function switchTab(id, btn) {
-    const wrap = btn.closest('.tabs');
-    wrap.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    wrap.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    wrap.querySelector('#tab-' + id).classList.add('active');
-    btn.classList.add('active');
-  }
-
-  // ── Scroll nav ──
-  function scrollTo(id) {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-  }
-
-  // ── Search filter ──
-  function filterPhases(query) {
-    const q = query.toLowerCase().trim();
-    const items = document.querySelectorAll('.phase-item');
-    items.forEach(item => {
-      if (!q) {
-        item.classList.remove('hidden');
-        return;
+    <script>
+      // ── Accordion ──
+      function togglePhase(header) {
+        const item = header.closest(".phase-item");
+        item.classList.toggle("open");
       }
-      const keywords = (item.dataset.keywords || '').toLowerCase();
-      const text = item.textContent.toLowerCase();
-      if (keywords.includes(q) || text.includes(q)) {
-        item.classList.remove('hidden');
-        if (!item.classList.contains('open')) {
-          item.classList.add('open');
-        }
-      } else {
-        item.classList.add('hidden');
+
+      // ── Tabs ──
+      function switchTab(id, btn) {
+        const wrap = btn.closest(".tabs");
+        wrap.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        wrap.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        wrap.querySelector("#tab-" + id).classList.add("active");
+        btn.classList.add("active");
       }
-    });
-  }
 
-  // ── Auto open Phase 1 on load ──
-  document.addEventListener('DOMContentLoaded', () => {
-    const first = document.querySelector('.phase-item[data-phase="1"]');
-    if (first) first.classList.add('open');
-  });
+      // ── Scroll nav ──
+      function scrollTo(id) {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.querySelectorAll(".nav-link").forEach((l) => l.classList.remove("active"));
+        event.currentTarget.classList.add("active");
+      }
 
-  // ── Animate progress bars on scroll ──
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.querySelectorAll('.progress-fill').forEach(bar => {
-          const w = bar.style.width;
-          bar.style.width = '0%';
-          requestAnimationFrame(() => { bar.style.width = w; });
+      // ── Search filter ──
+      function filterPhases(query) {
+        const q = query.toLowerCase().trim();
+        const items = document.querySelectorAll(".phase-item");
+        items.forEach((item) => {
+          if (!q) {
+            item.classList.remove("hidden");
+            return;
+          }
+          const keywords = (item.dataset.keywords || "").toLowerCase();
+          const text = item.textContent.toLowerCase();
+          if (keywords.includes(q) || text.includes(q)) {
+            item.classList.remove("hidden");
+            if (!item.classList.contains("open")) {
+              item.classList.add("open");
+            }
+          } else {
+            item.classList.add("hidden");
+          }
         });
-        observer.unobserve(e.target);
       }
-    });
-  }, { threshold: 0.3 });
 
-  document.querySelectorAll('.progress-bar').forEach(bar => observer.observe(bar.closest('.card')));
-</script>
-</body>
+      // ── Auto open Phase 1 on load ──
+      document.addEventListener("DOMContentLoaded", () => {
+        const first = document.querySelector('.phase-item[data-phase="1"]');
+        if (first) first.classList.add("open");
+      });
+
+      // ── Animate progress bars on scroll ──
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.querySelectorAll(".progress-fill").forEach((bar) => {
+                const w = bar.style.width;
+                bar.style.width = "0%";
+                requestAnimationFrame(() => {
+                  bar.style.width = w;
+                });
+              });
+              observer.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.3 },
+      );
+
+      document
+        .querySelectorAll(".progress-bar")
+        .forEach((bar) => observer.observe(bar.closest(".card")));
+    </script>
+  </body>
 </html>

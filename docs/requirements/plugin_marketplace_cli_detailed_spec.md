@@ -12,6 +12,7 @@ CLI は本プロジェクトにおける最重要要素であり、MVP 段階で
 ## 2. CLI の基本方針
 
 ### 2-1. 設計思想
+
 - コア価値は WebUI ではなく CLI にある
 - Minecraft サーバー管理者が「手作業のブラウザ操作」から脱却できることを目指す
 - コマンドは短く、直感的で、覚えやすくする
@@ -19,6 +20,7 @@ CLI は本プロジェクトにおける最重要要素であり、MVP 段階で
 - 人間が読みやすい出力を優先する
 
 ### 2-2. コマンド名
+
 CLI コマンドの仮名称は `hopper(エイリアス:h,ho,hop,hr)` とする。
 
 例:
@@ -45,14 +47,17 @@ hopper update
 ## 4. 実行前提
 
 ### 4-1. 実行環境
+
 - Node.js LTS
 - TypeScript により実装された Node CLI
 - 対応 OS: macOS / Windows / Linux
 
 ### 4-2. 作業対象ディレクトリ
+
 CLI は原則として「現在の作業ディレクトリ」を対象とする。
 
 想定:
+
 - サーバールートで実行する
 - その下に `plugins/` ディレクトリが存在する
 - または `--plugins-dir` オプションで明示指定する
@@ -73,6 +78,7 @@ MVP で対象とするコマンドは以下。
 8. `hopper doctor`
 
 将来拡張:
+
 - `hopper outdated`
 - `hopper add`
 - `hopper why`
@@ -86,24 +92,31 @@ MVP で対象とするコマンドは以下。
 以下のオプションは複数コマンドで共通利用できるように設計する。
 
 ### `--cwd <path>`
+
 作業ディレクトリを指定する。
 
 ### `--plugins-dir <path>`
+
 plugins フォルダの位置を明示する。
 
 ### `--registry-url <url>`
+
 参照する API サーバー URL を上書きする。
 
 ### `--json`
+
 人間向けではなく JSON 形式で出力する。
 
 ### `--silent`
+
 不要なログ出力を抑制する。
 
 ### `--verbose`
+
 内部処理や HTTP リクエスト、解決結果など詳細ログを表示する。
 
 ### `--yes`
+
 確認プロンプトを自動承認する。
 
 ---
@@ -113,6 +126,7 @@ plugins フォルダの位置を明示する。
 ## 7-1. `hopper search <query>`
 
 ### 目的
+
 キーワードからプラグインを検索する。
 
 ### 形式
@@ -129,10 +143,12 @@ hopper search permissions
 ```
 
 ### オプション
+
 - `--limit <number>`: 表示件数制限
 - `--json`: JSON 出力
 
 ### 正常系動作
+
 1. CLI が API の検索エンドポイントへ問い合わせる
 2. 取得した候補を整形する
 3. 名前、説明、作者、最新バージョンなどを表示する
@@ -156,6 +172,7 @@ Found 3 plugins:
 ```
 
 ### 異常系
+
 - 検索結果 0 件 → 0 件であることを明示
 - API 到達失敗 → 接続エラー表示
 
@@ -164,6 +181,7 @@ Found 3 plugins:
 ## 7-2. `hopper info <plugin-name>`
 
 ### 目的
+
 指定プラグインの詳細情報を表示する。
 
 ### 形式
@@ -179,10 +197,12 @@ hopper info essentialsx
 ```
 
 ### 正常系動作
+
 1. プラグイン詳細を API から取得
 2. 現在の最新バージョン、説明、作者、依存関係、対応プラットフォームを表示
 
 ### 表示項目
+
 - name
 - displayName
 - description
@@ -212,6 +232,7 @@ Core server commands and utilities.
 ## 7-3. `hopper install [plugin-name]`
 
 ### 目的
+
 単体インストール、または manifest から一括インストールを行う。
 
 ### 形式
@@ -235,6 +256,7 @@ hopper install
 ```
 
 ### オプション
+
 - `--save`: manifest に保存する
 - `--save-dev`: 将来予約。MVP では未使用扱いでもよい
 - `--force`: 既存ファイルを強制上書き
@@ -242,6 +264,7 @@ hopper install
 - `--dry-run`: 実際には書き込まず、処理内容のみ表示
 
 ### 単体インストール処理
+
 1. 引数から name と version range を解析
 2. API に resolve リクエスト
 3. 依存関係込みでインストール対象一覧を取得
@@ -253,6 +276,7 @@ hopper install
 9. lock ファイル更新
 
 ### manifest インストール処理
+
 1. `hopper-plugin.json` を探索
 2. 記載された plugins 群を取得
 3. lock があれば lock を優先
@@ -270,6 +294,7 @@ Done.
 ```
 
 ### 注意点
+
 - JAR ファイル名は registry 側メタデータまたは URL から決定
 - 同名ファイルがある場合の挙動は `--force` の有無で変える
 - サーバー起動中の上書きは将来警告対象にしてもよい
@@ -279,6 +304,7 @@ Done.
 ## 7-4. `hopper list`
 
 ### 目的
+
 インストール済みプラグイン一覧を表示する。
 
 ### 形式
@@ -288,6 +314,7 @@ hopper list
 ```
 
 ### 正常系動作
+
 - ローカル metadata から取得
 - metadata がなければ `plugins/` をスキャンして補助的に一覧表示する
 
@@ -301,6 +328,7 @@ Installed plugins:
 ```
 
 ### 将来拡張
+
 - `--outdated`
 - `--tree`
 - `--json`
@@ -310,6 +338,7 @@ Installed plugins:
 ## 7-5. `hopper remove <plugin-name>`
 
 ### 目的
+
 指定プラグインを削除する。
 
 ### 形式
@@ -319,10 +348,12 @@ hopper remove <plugin-name>
 ```
 
 ### オプション
+
 - `--force`: 依存関係警告を無視
 - `--yes`: 確認省略
 
 ### 正常系動作
+
 1. 対象プラグインをローカル metadata から確認
 2. 他プラグインが依存していないか確認
 3. 確認プロンプト表示
@@ -330,6 +361,7 @@ hopper remove <plugin-name>
 5. metadata / lock / manifest を必要に応じて更新
 
 ### 依存考慮
+
 - 他プラグインが依存している場合は通常エラー
 - `--force` で削除可能にするかは MVP 時点では慎重に扱う
 
@@ -338,6 +370,7 @@ hopper remove <plugin-name>
 ## 7-6. `hopper update [plugin-name]`
 
 ### 目的
+
 単体または全体を更新する。
 
 ### 形式
@@ -348,11 +381,13 @@ hopper update essentialsx
 ```
 
 ### オプション
+
 - `--dry-run`
 - `--yes`
 - `--latest`: manifest range を無視して最新を採用
 
 ### 全体更新処理
+
 1. ローカル metadata を取得
 2. 各プラグインについて API へ問い合わせ
 3. 新しいバージョンが存在するか判定
@@ -360,6 +395,7 @@ hopper update essentialsx
 5. lock を更新
 
 ### 単体更新処理
+
 - 指定プラグインのみ対象にして同様の処理
 
 ### 表示例
@@ -376,6 +412,7 @@ Done.
 ## 7-7. `hopper init`
 
 ### 目的
+
 manifest ファイルを新規生成する。
 
 ### 形式
@@ -385,6 +422,7 @@ hopper init
 ```
 
 ### 正常系動作
+
 - 作業ディレクトリからサーバー環境を確認
 - 対話形式またはデフォルト値で `hopper-plugin.json` を生成
 
@@ -406,9 +444,11 @@ hopper init
 ## 7-8. `hopper doctor`
 
 ### 目的
+
 現在の環境を診断する。
 
 ### 役割
+
 - `plugins/` ディレクトリ確認
 - `hopper-plugin.json` 存在確認
 - API 疎通確認
@@ -431,12 +471,15 @@ Environment check:
 CLI は以下のファイルを扱う。
 
 ### 8-1. `hopper-plugin.json`
+
 宣言ファイル。希望依存を管理する。
 
 ### 8-2. `hopper-plugin-lock.json`
+
 実際に解決されたバージョンを保持する。
 
 ### 8-3. `.hopper/installed.json`
+
 CLI 内部管理用 metadata。
 
 例:
@@ -461,25 +504,30 @@ CLI 内部管理用 metadata。
 CLI 内部は以下の責務に分割する。
 
 ### 9-1. command layer
+
 - commander による引数解釈
 - オプションの正規化
 - 実行関数呼び出し
 
 ### 9-2. service layer
+
 - install / update / remove などユースケース本体
 - resolve 結果の解釈
 - metadata / manifest / lock 更新
 
 ### 9-3. registry client
+
 - API との通信抽象化
 - fetch / search / resolve など
 
 ### 9-4. file system layer
+
 - plugins 保存
 - ローカル JSON ファイル読み書き
 - パス検証
 
 ### 9-5. formatter layer
+
 - 画面表示整形
 - JSON 出力整形
 - エラー表示整形
@@ -489,11 +537,13 @@ CLI 内部は以下の責務に分割する。
 ## 10. 出力方針
 
 ### 10-1. 人間向け出力
+
 - 必要最低限かつ読みやすく
 - 成功・警告・失敗を区別する
 - 行数を増やしすぎない
 
 ### 10-2. JSON 出力
+
 `--json` 指定時はスクリプト連携可能な形式にする。
 
 例:
@@ -516,6 +566,7 @@ CLI 内部は以下の責務に分割する。
 ## 11. エラー設計
 
 ### 11-1. エラー分類
+
 - UserError: 入力ミス
 - NetworkError: API 接続失敗
 - ResolveError: 依存解決失敗
@@ -523,7 +574,9 @@ CLI 内部は以下の責務に分割する。
 - RegistryError: registry 側の不整合
 
 ### 11-2. 表示方針
+
 ユーザーに以下が伝わるようにする。
+
 - 何に失敗したか
 - なぜ失敗した可能性が高いか
 - 次に何を試すべきか
@@ -541,15 +594,18 @@ Try again later or check --registry-url.
 ## 12. UX 方針
 
 ### 12-1. 重要な UX 目標
+
 - 初見でも迷わない
 - 成功時に安心できる
 - 失敗時に次の行動がわかる
 - `npm` に慣れた人が違和感なく使える
 
 ### 12-2. 確認プロンプト
+
 破壊的操作や上書き時のみ表示する。
 
 例:
+
 - remove
 - force overwrite
 - lock 再生成
@@ -575,21 +631,25 @@ Try again later or check --registry-url.
 ## 14. 実装優先順位
 
 ### Phase 1
+
 - `search`
 - `info`
 - `install <name>`
 
 ### Phase 2
+
 - `list`
 - `remove`
 - `update`
 
 ### Phase 3
+
 - `init`
 - `install` from manifest
 - lock file
 
 ### Phase 4
+
 - `doctor`
 - `--json`
 - `--dry-run`
@@ -604,4 +664,3 @@ Try again later or check --registry-url.
 - update と semver の厳密仕様
 - 対話プロンプトの UX
 - JSON 出力スキーマの固定
-
