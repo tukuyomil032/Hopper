@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -38,14 +40,18 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Check tag does not exist
+      - name: Check if already released
+        id: check
         run: |
           if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.version.outputs.tag }} already exists. Bump the version first."
-            exit 1
+            echo "Tag ${{ steps.version.outputs.tag }} already exists, skipping release."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create and push tag
+        if: steps.check.outputs.skip == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -53,12 +59,14 @@ jobs:
           git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Publish to npm
+        if: steps.check.outputs.skip == 'false'
         working-directory: packages/cli
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
+        if: steps.check.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
